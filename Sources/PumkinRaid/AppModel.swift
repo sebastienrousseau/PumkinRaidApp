@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import GameController
 import PumkinRaidCore
 
 @MainActor
@@ -47,6 +48,9 @@ final class AppModel: ObservableObject {
   }
 
   func movePhantom(horizontal: CGFloat, vertical: CGFloat) {
+    #if os(macOS)
+      if GCKeyboard.coalesced?.keyboardInput?.isAnyKeyPressed == true { return }
+    #endif
     activeGameScene?.movePhantom(horizontal: horizontal, vertical: vertical)
   }
 

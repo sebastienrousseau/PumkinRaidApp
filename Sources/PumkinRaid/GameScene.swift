@@ -1,5 +1,6 @@
 import CoreMotion
 import Foundation
+import GameController
 import PumkinRaidCore
 import SpriteKit
 
@@ -101,9 +102,11 @@ final class GameScene: SKScene {
   }
 
   private func layoutHUD() {
-    let inset: CGFloat = max(52, size.width * 0.12)
+    let inset = min(52, max(20, size.width * 0.08))
     let panelWidth = size.width - inset * 2
     let panelHeight: CGFloat = 66
+    let topMargin = max(68, min(88, size.height * 0.12))
+    let labelSize = min(18, max(12, size.width * 0.035))
     hudBackground.path = CGPath(
       roundedRect: CGRect(
         x: -panelWidth / 2, y: -panelHeight / 2, width: panelWidth, height: panelHeight),
@@ -111,14 +114,17 @@ final class GameScene: SKScene {
       cornerHeight: 13,
       transform: nil
     )
-    hudBackground.position = CGPoint(x: size.width / 2, y: size.height - 88)
+    hudBackground.position = CGPoint(x: size.width / 2, y: size.height - topMargin)
 
-    let leftX = size.width * 0.3
-    let rightX = size.width * 0.7
-    scoreLabel.position = CGPoint(x: leftX, y: size.height - 78)
-    livesLabel.position = CGPoint(x: leftX, y: size.height - 101)
-    slicesLabel.position = CGPoint(x: rightX, y: size.height - 78)
-    boomsLabel.position = CGPoint(x: rightX, y: size.height - 101)
+    let leftX = size.width / 2 - panelWidth * 0.25
+    let rightX = size.width / 2 + panelWidth * 0.25
+    for label in [scoreLabel, livesLabel, slicesLabel, boomsLabel] {
+      label.fontSize = labelSize
+    }
+    scoreLabel.position = CGPoint(x: leftX, y: size.height - topMargin + 10)
+    livesLabel.position = CGPoint(x: leftX, y: size.height - topMargin - 13)
+    slicesLabel.position = CGPoint(x: rightX, y: size.height - topMargin + 10)
+    boomsLabel.position = CGPoint(x: rightX, y: size.height - topMargin - 13)
   }
 
   private func resizeBackground(_ background: SKSpriteNode) {
@@ -186,6 +192,9 @@ final class GameScene: SKScene {
     let delta = lastUpdateTime == 0 ? 0 : min(currentTime - lastUpdateTime, 0.1)
     lastUpdateTime = currentTime
     guard delta > 0 else { return }
+    #if os(macOS)
+      movePhantomFromHardwareKeyboard(delta: delta)
+    #endif
     survivalElapsed += delta
     moveEnemies(by: delta)
     moveBonus(by: delta)
@@ -389,6 +398,30 @@ final class GameScene: SKScene {
       CGPoint(x: phantom.position.x + horizontal, y: phantom.position.y + vertical)
     )
   }
+
+  #if os(macOS)
+    private func movePhantomFromHardwareKeyboard(delta: TimeInterval) {
+      guard let keyboard = GCKeyboard.coalesced?.keyboardInput else { return }
+      let left = isPressed(keyboard, .leftArrow) || isPressed(keyboard, .keyA)
+      let right = isPressed(keyboard, .rightArrow) || isPressed(keyboard, .keyD)
+      let down = isPressed(keyboard, .downArrow) || isPressed(keyboard, .keyS)
+      let up = isPressed(keyboard, .upArrow) || isPressed(keyboard, .keyW)
+
+      var horizontal = CGFloat((right ? 1 : 0) - (left ? 1 : 0))
+      var vertical = CGFloat((up ? 1 : 0) - (down ? 1 : 0))
+      guard horizontal != 0 || vertical != 0 else { return }
+      if horizontal != 0, vertical != 0 {
+        horizontal *= 0.707
+        vertical *= 0.707
+      }
+      let distance = CGFloat(delta) * 260
+      movePhantom(horizontal: horizontal * distance, vertical: vertical * distance)
+    }
+
+    private func isPressed(_ keyboard: GCKeyboardInput, _ code: GCKeyCode) -> Bool {
+      keyboard.button(forKeyCode: code)?.isPressed == true
+    }
+  #endif
 
   func startMotionUpdates() {
     #if os(iOS)

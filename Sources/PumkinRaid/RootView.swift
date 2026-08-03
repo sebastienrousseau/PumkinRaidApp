@@ -51,33 +51,52 @@ private struct StartView: View {
 
   var body: some View {
     GeometryReader { proxy in
-      let moonCenter = splashPoint(
-        CGPoint(x: 344, y: 358),
-        in: proxy.size
+      let sourceSize = CGSize(width: 640, height: 960)
+      let artworkScale = min(
+        proxy.size.width / sourceSize.width,
+        proxy.size.height / sourceSize.height
       )
+      let playSize = min(proxy.size.width * 0.34, 160)
+      let labelOffset = min(105, proxy.size.height * 0.15)
       ZStack {
         GameArtwork(name: "splashscreen")
+          .scaleEffect(1.08)
+          .blur(radius: 18)
+          .overlay(.black.opacity(0.14))
 
-        Button {
-          model.beginGame()
-        } label: {
-          ImageButton(name: "button-start", size: min(proxy.size.width * 0.34, 160))
-            .scaleEffect(playPulse ? 1.08 : 0.96)
-            .shadow(color: .cyan.opacity(0.9), radius: playPulse ? 20 : 9)
+        ZStack {
+          BundledImage(name: "splashscreen")
+            .frame(width: sourceSize.width, height: sourceSize.height)
+
+          Button {
+            model.beginGame()
+          } label: {
+            ImageButton(name: "button-start", size: playSize / artworkScale)
+              .scaleEffect(playPulse ? 1.08 : 0.96)
+              .shadow(
+                color: .cyan.opacity(0.9),
+                radius: (playPulse ? 20 : 9) / artworkScale
+              )
+          }
+          .buttonStyle(.plain)
+          .accessibilityLabel("Start game")
+          .position(x: 329, y: 352)
+
+          Text("Tap or click the arrow to play")
+            .font(.system(size: 17 / artworkScale, weight: .bold, design: .rounded))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16 / artworkScale)
+            .padding(.vertical, 9 / artworkScale)
+            .background(.black.opacity(0.68), in: Capsule())
+            .overlay(
+              Capsule().stroke(.orange.opacity(0.8), lineWidth: 1 / artworkScale)
+            )
+            .position(x: 329, y: 352 + labelOffset / artworkScale)
+            .accessibilityHidden(true)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Start game")
-        .position(moonCenter)
-
-        Text("Tap or click the arrow to play")
-          .font(.system(.headline, design: .rounded, weight: .bold))
-          .foregroundStyle(.white)
-          .padding(.horizontal, 16)
-          .padding(.vertical, 9)
-          .background(.black.opacity(0.68), in: Capsule())
-          .overlay(Capsule().stroke(.orange.opacity(0.8), lineWidth: 1))
-          .position(x: moonCenter.x, y: moonCenter.y + min(105, proxy.size.height * 0.15))
-          .accessibilityHidden(true)
+        .frame(width: sourceSize.width, height: sourceSize.height)
+        .scaleEffect(artworkScale)
+        .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
 
         Button {
           model.showSettings()
@@ -95,6 +114,8 @@ private struct StartView: View {
         .accessibilityLabel("Settings and game guide")
         .position(x: proxy.size.width - 34, y: 46)
       }
+      .frame(width: proxy.size.width, height: proxy.size.height)
+      .clipped()
     }
     .ignoresSafeArea()
     .onAppear {
@@ -105,16 +126,6 @@ private struct StartView: View {
     }
   }
 
-  private func splashPoint(_ sourcePoint: CGPoint, in size: CGSize) -> CGPoint {
-    let sourceSize = CGSize(width: 640, height: 960)
-    let scale = max(size.width / sourceSize.width, size.height / sourceSize.height)
-    let renderedSize = CGSize(width: sourceSize.width * scale, height: sourceSize.height * scale)
-    let crop = CGPoint(
-      x: (renderedSize.width - size.width) / 2,
-      y: (renderedSize.height - size.height) / 2
-    )
-    return CGPoint(x: sourcePoint.x * scale - crop.x, y: sourcePoint.y * scale - crop.y)
-  }
 }
 
 private struct SettingsView: View {
@@ -211,14 +222,15 @@ private struct GameOverView: View {
             .foregroundStyle(.orange)
             .shadow(color: .black.opacity(0.75), radius: 4, y: 2)
 
-          VStack(spacing: 16) {
+          VStack(spacing: 0) {
             scoreRow("High Score", highScore, icon: "trophy.fill")
+              .frame(height: 58)
             Divider().overlay(.white.opacity(0.22))
             scoreRow("This Run", score, icon: "flag.checkered")
+              .frame(height: 58)
           }
           .padding(.horizontal, 26)
-          .padding(.top, 36)
-          .padding(.bottom, 28)
+          .padding(.vertical, 26)
           .frame(maxWidth: 350)
           .background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 20))
           .overlay(
