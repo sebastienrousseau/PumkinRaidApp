@@ -77,7 +77,7 @@ final class GameScene: SKScene {
     DispatchQueue.main.async { [weak self] in
       self?.placePhantomAtStartIfNeeded()
     }
-    buildEnemies()
+    buildEnemiesIfPossible()
     nextBonusDelay = spawnDirector.nextBonusDelay()
     startMotionUpdates()
     AudioManager.shared.play("creaking_door", enabled: settings.effectsEnabled)
@@ -164,7 +164,10 @@ final class GameScene: SKScene {
     world.addChild(phantom)
   }
 
-  private func buildEnemies() {
+  private func buildEnemiesIfPossible() {
+    guard enemies.isEmpty, world.parent != nil, size.width > 100, size.height > 100 else {
+      return
+    }
     let textures = (1...3).map { AssetLoader.texture("pumpkin\($0)") }
     for index in 0..<GameRules.enemyCount {
       let enemy = SKSpriteNode(texture: textures[0])
@@ -190,6 +193,7 @@ final class GameScene: SKScene {
     layoutHUD()
     resizePhantom()
     resizeDynamicNodes()
+    buildEnemiesIfPossible()
     placePhantomAtStartIfNeeded()
     phantom.position = clampedPhantomPosition(phantom.position)
   }
