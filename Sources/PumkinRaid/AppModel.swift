@@ -13,6 +13,7 @@ final class AppModel: ObservableObject {
 
   @Published var screen: Screen = .start
   @Published var settings: GameSettings { didSet { saveSettings() } }
+  weak var activeGameScene: GameScene?
 
   private let defaults: UserDefaults
   private static let settingsKey = "PumkinRaid.settings"
@@ -39,9 +40,14 @@ final class AppModel: ObservableObject {
   }
 
   func finishGame(score: Int) {
+    activeGameScene = nil
     let highScore = max(score, defaults.integer(forKey: Self.highScoreKey))
     defaults.set(highScore, forKey: Self.highScoreKey)
     screen = .gameOver(score: score, highScore: highScore)
+  }
+
+  func movePhantom(horizontal: CGFloat, vertical: CGFloat) {
+    activeGameScene?.movePhantom(horizontal: horizontal, vertical: vertical)
   }
 
   private func saveSettings() {

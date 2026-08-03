@@ -51,6 +51,10 @@ private struct StartView: View {
 
   var body: some View {
     GeometryReader { proxy in
+      let moonCenter = splashPoint(
+        CGPoint(x: 344, y: 358),
+        in: proxy.size
+      )
       ZStack {
         GameArtwork(name: "splashscreen")
 
@@ -63,7 +67,7 @@ private struct StartView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Start game")
-        .position(x: proxy.size.width * 0.5, y: proxy.size.height * 0.36)
+        .position(moonCenter)
 
         Text("Tap or click the arrow to play")
           .font(.system(.headline, design: .rounded, weight: .bold))
@@ -72,7 +76,7 @@ private struct StartView: View {
           .padding(.vertical, 9)
           .background(.black.opacity(0.68), in: Capsule())
           .overlay(Capsule().stroke(.orange.opacity(0.8), lineWidth: 1))
-          .position(x: proxy.size.width * 0.5, y: proxy.size.height * 0.48)
+          .position(x: moonCenter.x, y: moonCenter.y + min(105, proxy.size.height * 0.15))
           .accessibilityHidden(true)
 
         Button {
@@ -99,6 +103,17 @@ private struct StartView: View {
         playPulse = true
       }
     }
+  }
+
+  private func splashPoint(_ sourcePoint: CGPoint, in size: CGSize) -> CGPoint {
+    let sourceSize = CGSize(width: 640, height: 960)
+    let scale = max(size.width / sourceSize.width, size.height / sourceSize.height)
+    let renderedSize = CGSize(width: sourceSize.width * scale, height: sourceSize.height * scale)
+    let crop = CGPoint(
+      x: (renderedSize.width - size.width) / 2,
+      y: (renderedSize.height - size.height) / 2
+    )
+    return CGPoint(x: sourcePoint.x * scale - crop.x, y: sourcePoint.y * scale - crop.y)
   }
 }
 
@@ -142,10 +157,10 @@ private struct SettingsView: View {
 }
 
 private struct GameView: View {
+  @EnvironmentObject private var model: AppModel
   let settings: PumkinRaidCore.GameSettings
   let onGameOver: (Int) -> Void
   @State private var scene: GameScene
-  @State private var showsControlHint = true
 
   init(settings: PumkinRaidCore.GameSettings, onGameOver: @escaping (Int) -> Void) {
     self.settings = settings
@@ -154,7 +169,7 @@ private struct GameView: View {
   }
 
   var body: some View {
-    ZStack {
+    Group {
       #if os(macOS)
         GameSceneView(scene: scene)
           .ignoresSafeArea()
@@ -162,29 +177,9 @@ private struct GameView: View {
         SpriteView(scene: scene, options: [.ignoresSiblingOrder])
           .ignoresSafeArea()
       #endif
-
-      if showsControlHint {
-        VStack {
-          Spacer()
-          #if os(macOS)
-            Label(
-              "Move: arrow keys or WASD • Drag the ghost • Click or swipe pumpkins",
-              systemImage: "keyboard")
-          #else
-            Label("Tilt or drag the ghost • Tap or swipe pumpkins", systemImage: "hand.draw.fill")
-          #endif
-        }
-        .font(.caption.weight(.bold))
-        .foregroundStyle(.white)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 8)
-        .background(.black.opacity(0.72), in: Capsule())
-        .padding(.bottom, 18)
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
-        .allowsHitTesting(false)
-      }
     }
     .onAppear {
+      model.activeGameScene = scene
       scene.gameOverHandler = onGameOver
       AudioManager.shared.startMusic(enabled: settings.musicEnabled)
       #if os(macOS)
@@ -192,14 +187,9 @@ private struct GameView: View {
           scene.view?.window?.makeFirstResponder(scene.view)
         }
       #endif
-      Task { @MainActor in
-        try? await Task.sleep(for: .seconds(5))
-        withAnimation(.easeOut(duration: 0.4)) {
-          showsControlHint = false
-        }
-      }
     }
     .onDisappear {
+      if model.activeGameScene === scene { model.activeGameScene = nil }
       scene.stopMotionUpdates()
       AudioManager.shared.stopMusic()
     }
@@ -226,7 +216,9 @@ private struct GameOverView: View {
             Divider().overlay(.white.opacity(0.22))
             scoreRow("This Run", score, icon: "flag.checkered")
           }
-          .padding(22)
+          .padding(.horizontal, 26)
+          .padding(.top, 36)
+          .padding(.bottom, 28)
           .frame(maxWidth: 350)
           .background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 20))
           .overlay(

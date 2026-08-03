@@ -62,7 +62,7 @@
         detachKeyboardMonitor()
       } else if keyMonitor == nil {
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-          guard let self, event.window === self.window else { return event }
+          guard let self, NSApp.isActive, self.window?.isKeyWindow == true else { return event }
           return self.handleMovementKey(event) ? nil : event
         }
       }
@@ -76,7 +76,6 @@
 
     private func handleMovementKey(_ event: NSEvent) -> Bool {
       guard let gameScene else { return false }
-
       let distance: CGFloat = event.isARepeat ? 12 : 22
       switch event.keyCode {
       case 123:

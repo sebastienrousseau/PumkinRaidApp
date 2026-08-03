@@ -39,6 +39,7 @@ final class GameScene: SKScene {
   private var draggingPhantom = false
   private var didSliceDuringGesture = false
   private var gameEnded = false
+  private var needsInitialPhantomPlacement = true
 
   init(settings: GameSettings) {
     self.settings = settings
@@ -56,6 +57,9 @@ final class GameScene: SKScene {
     buildBackground()
     buildHUD()
     buildPhantom()
+    DispatchQueue.main.async { [weak self] in
+      self?.placePhantomAtStartIfNeeded()
+    }
     buildEnemies()
     startMotionUpdates()
     AudioManager.shared.play("creaking_door", enabled: settings.effectsEnabled)
@@ -165,8 +169,16 @@ final class GameScene: SKScene {
       background.position = CGPoint(x: size.width / 2, y: size.height / 2)
     }
     layoutHUD()
+    placePhantomAtStartIfNeeded()
     phantom.position.x = min(
       max(phantom.position.x, phantom.size.width / 2), size.width - phantom.size.width / 2)
+  }
+
+  private func placePhantomAtStartIfNeeded() {
+    guard needsInitialPhantomPlacement, phantom.parent != nil, size.width > 100, size.height > 100
+    else { return }
+    phantom.position = CGPoint(x: size.width / 2, y: 70)
+    needsInitialPhantomPlacement = false
   }
 
   override func update(_ currentTime: TimeInterval) {
