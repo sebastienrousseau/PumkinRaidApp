@@ -30,6 +30,7 @@ identical at phone, tablet, television, desktop, and browser resolutions.
 
 ## Extraction boundary
 
-`GameEngineLib` is already a public Swift package product. It deliberately remains
-in this repository until its API and replay format reach 1.0; it can then be moved
-to a standalone repository without changing the app-facing import.
+`GameEngineLib` is versioned independently at
+https://github.com/sebastienrousseau/GameEngineLib. The private app consumes its
+public semantic-versioned package product, keeping proprietary assets and presentation
+code out of the reusable engine repository.

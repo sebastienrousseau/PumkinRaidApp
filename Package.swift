@@ -10,20 +10,17 @@ let package = Package(
     .macOS(.v14),
     .tvOS(.v17),
   ],
+  dependencies: [
+    .package(url: "https://github.com/sebastienrousseau/GameEngineLib.git", from: "0.1.0")
+  ],
   products: [
     .executable(name: "PumkinRaidApp", targets: ["PumkinRaidApp"]),
-    .library(name: "GameEngineLib", targets: ["GameEngineLib"]),
   ],
   targets: [
-    .target(name: "GameEngineLib"),
     .executableTarget(
       name: "PumkinRaidApp",
-      dependencies: ["GameEngineLib"],
+      dependencies: [.product(name: "GameEngineLib", package: "GameEngineLib")],
       resources: [.process("Resources")]
-    ),
-    .testTarget(
-      name: "GameEngineLibTests",
-      dependencies: ["GameEngineLib"]
     ),
   ]
 )

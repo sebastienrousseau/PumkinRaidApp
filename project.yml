@@ -6,18 +6,11 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     DEVELOPMENT_TEAM: ""
-targets:
+packages:
   GameEngineLib:
-    type: framework
-    platform: iOS
-    deploymentTarget: "17.0"
-    sources:
-      - path: Sources/GameEngineLib
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sebastienrousseau.GameEngineLib
-        GENERATE_INFOPLIST_FILE: YES
-        DEFINES_MODULE: YES
+    url: https://github.com/sebastienrousseau/GameEngineLib.git
+    from: 0.1.0
+targets:
   PumkinRaidApp:
     type: application
     platform: iOS
@@ -28,7 +21,7 @@ targets:
       - path: Sources/PumkinRaidApp/Resources
         buildPhase: resources
     dependencies:
-      - target: GameEngineLib
+      - package: GameEngineLib
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sebastienrousseau.PumkinRaidApp
@@ -42,17 +35,3 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: NO
-    scheme:
-      testTargets: [GameEngineLibTests]
-  GameEngineLibTests:
-    type: bundle.unit-test
-    platform: iOS
-    deploymentTarget: "17.0"
-    sources:
-      - path: Tests/GameEngineLibTests
-    dependencies:
-      - target: GameEngineLib
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sebastienrousseau.GameEngineLibTests
-        GENERATE_INFOPLIST_FILE: YES

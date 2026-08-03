@@ -44,15 +44,14 @@ PumkinRaidApp/
 ├── .github/workflows/          Continuous integration
 ├── Documentation/              Architecture, design, and web guides
 ├── Platforms/Web/              Swift WebAssembly browser executable
-├── Sources/GameEngineLib/      Reusable platform-neutral game engine
 ├── Sources/PumkinRaidApp/      Apple app, renderer, input, audio, resources
-├── Tests/GameEngineLibTests/   Deterministic rules and simulation tests
 ├── Package.swift               Canonical Swift package
 └── project.yml                 Optional generated iOS Xcode project
 ```
 
-`GameEngineLib` is a public library product and has no dependency on SpriteKit,
-SwiftUI, UIKit, or AppKit. See [Architecture](Documentation/Architecture.md).
+[`GameEngineLib`](https://github.com/sebastienrousseau/GameEngineLib) is a separate
+public package with no dependency on SpriteKit, SwiftUI, UIKit, or AppKit. See
+[Architecture](Documentation/Architecture.md).
 
 ## Build and run
 
@@ -89,14 +88,15 @@ remote input without forking gameplay rules.
 The browser build requires Swift 6.2 or newer and its matching WebAssembly SDK. Follow the
 [web build guide](Documentation/Web.md).
 
-## Testing
+## Validation
 
 ```sh
-swift test
+swift build
 ```
 
-Tests cover scoring and inventory boundaries, game-over safety, deterministic spawn
-runs, safe position bounds, combo windows, extra lives, and leaderboard ordering.
+The public `GameEngineLib` package owns tests for scoring and inventory boundaries,
+game-over safety, deterministic spawn runs, safe position bounds, combo windows,
+extra lives, and leaderboard ordering.
 
 ## Product status
 

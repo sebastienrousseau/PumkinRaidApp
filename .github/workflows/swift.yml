@@ -23,8 +23,6 @@ jobs:
         run: swift --version
       - name: Build release
         run: swift build -c release
-      - name: Test game engine
-        run: swift test --parallel
       - name: Verify pure Swift sources
         run: |
           if find Sources -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.m' -o -name '*.mm' \) | grep -q .; then
