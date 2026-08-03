@@ -6,8 +6,15 @@
   final class PumkinRaidApplication: NSApplication {
     var gameplayIsActive: (() -> Bool)?
     var movementKeyDown: ((UInt16) -> Void)?
+    var gameplayPointerEvent: ((NSEvent) -> Bool)?
 
     override func sendEvent(_ event: NSEvent) {
+      if gameplayIsActive?() == true,
+        [.leftMouseDown, .leftMouseDragged, .leftMouseUp].contains(event.type),
+        gameplayPointerEvent?(event) == true
+      {
+        return
+      }
       if gameplayIsActive?() == true, KeyboardState.shared.handle(event) {
         if event.type == .keyDown, !event.isARepeat {
           movementKeyDown?(event.keyCode)
@@ -54,6 +61,9 @@
         case 13, 126: model?.movePhantom(horizontal: 0, vertical: 24)
         default: break
         }
+      }
+      application.gameplayPointerEvent = { [weak model] event in
+        model?.handlePointerEvent(event) ?? false
       }
       buildMainMenu()
       NSApp.activate(ignoringOtherApps: true)

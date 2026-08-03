@@ -2,6 +2,10 @@ import Combine
 import Foundation
 import GameEngineLib
 
+#if os(macOS)
+  import AppKit
+#endif
+
 @MainActor
 final class AppModel: ObservableObject {
   enum Screen {
@@ -77,6 +81,12 @@ final class AppModel: ObservableObject {
   func movePhantom(horizontal: CGFloat, vertical: CGFloat) {
     activeGameScene?.movePhantom(horizontal: horizontal, vertical: vertical)
   }
+
+  #if os(macOS)
+    func handlePointerEvent(_ event: NSEvent) -> Bool {
+      activeGameScene?.handleApplicationPointerEvent(event) ?? false
+    }
+  #endif
 
   private func saveSettings() {
     guard let data = try? JSONEncoder().encode(settings) else { return }

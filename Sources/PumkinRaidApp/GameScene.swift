@@ -675,6 +675,22 @@ final class GameScene: SKScene {
       endGesture(at: touch.location(in: self))
     }
   #elseif os(macOS)
+    func handleApplicationPointerEvent(_ event: NSEvent) -> Bool {
+      guard let view, event.window === view.window else { return false }
+      let viewPoint = view.convert(event.locationInWindow, from: nil)
+      switch event.type {
+      case .leftMouseDown:
+        handlePointerDown(at: viewPoint)
+      case .leftMouseDragged:
+        handlePointerDragged(to: viewPoint)
+      case .leftMouseUp:
+        handlePointerUp(at: viewPoint)
+      default:
+        return false
+      }
+      return true
+    }
+
     func handlePointerDown(at viewPoint: CGPoint) {
       beginGesture(at: convertPoint(fromView: viewPoint))
     }
