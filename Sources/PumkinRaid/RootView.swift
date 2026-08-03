@@ -47,33 +47,57 @@ struct RootView: View {
 
 private struct StartView: View {
   @EnvironmentObject private var model: AppModel
+  @State private var playPulse = false
 
   var body: some View {
     GeometryReader { proxy in
       ZStack {
         GameArtwork(name: "splashscreen")
+
         Button {
           model.beginGame()
         } label: {
-          ImageButton(name: "button-start", size: min(proxy.size.width * 0.38, 190))
+          ImageButton(name: "button-start", size: min(proxy.size.width * 0.34, 160))
+            .scaleEffect(playPulse ? 1.08 : 0.96)
+            .shadow(color: .cyan.opacity(0.9), radius: playPulse ? 20 : 9)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Start game")
-        .position(x: proxy.size.width * 0.53, y: proxy.size.height * 0.62)
+        .position(x: proxy.size.width * 0.5, y: proxy.size.height * 0.36)
+
+        Text("Tap or click the arrow to play")
+          .font(.system(.headline, design: .rounded, weight: .bold))
+          .foregroundStyle(.white)
+          .padding(.horizontal, 16)
+          .padding(.vertical, 9)
+          .background(.black.opacity(0.68), in: Capsule())
+          .overlay(Capsule().stroke(.orange.opacity(0.8), lineWidth: 1))
+          .position(x: proxy.size.width * 0.5, y: proxy.size.height * 0.48)
+          .accessibilityHidden(true)
 
         Button {
           model.showSettings()
         } label: {
-          ImageButton(name: "button-info", size: min(proxy.size.width * 0.085, 38))
+          Image(systemName: "info.circle.fill")
+            .font(.system(size: 21, weight: .semibold))
+            .symbolRenderingMode(.palette)
+            .foregroundStyle(.white, .orange)
+            .frame(width: 42, height: 42)
+            .background(.black.opacity(0.58), in: Circle())
+            .overlay(Circle().stroke(.white.opacity(0.65), lineWidth: 1))
+            .shadow(color: .black.opacity(0.45), radius: 8, y: 3)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Settings and game guide")
-        .position(x: proxy.size.width - 34, y: 38)
+        .position(x: proxy.size.width - 34, y: 46)
       }
     }
     .ignoresSafeArea()
     .onAppear {
       AudioManager.shared.startMusic(enabled: model.settings.musicEnabled)
+      withAnimation(.easeInOut(duration: 0.85).repeatForever(autoreverses: true)) {
+        playPulse = true
+      }
     }
   }
 }
@@ -93,10 +117,13 @@ private struct SettingsView: View {
           Toggle("Special effects", isOn: $model.settings.effectsEnabled)
           Toggle("Vibration", isOn: $model.settings.vibrationEnabled)
           Divider()
-          Text(
-            "Guide the phantom through the haunted night. Dodge pumpkins, collect sweets, tap pumpkins to boom them, or swipe through them to slice them."
-          )
-          .font(.body)
+          VStack(alignment: .leading, spacing: 12) {
+            Label("Move with arrow keys, WASD, tilt, or drag", systemImage: "move.3d")
+            Label("Tap or click pumpkins to use a boom", systemImage: "burst.fill")
+            Label("Swipe through pumpkins to slice them", systemImage: "scribble.variable")
+            Label("Collect sweets and build your high score", systemImage: "star.fill")
+          }
+          .font(.callout.weight(.semibold))
           Button("Get started!") { model.beginGame() }
             .buttonStyle(.borderedProminent)
             .tint(.orange)
@@ -118,6 +145,7 @@ private struct GameView: View {
   let settings: PumkinRaidCore.GameSettings
   let onGameOver: (Int) -> Void
   @State private var scene: GameScene
+  @State private var showsControlHint = true
 
   init(settings: PumkinRaidCore.GameSettings, onGameOver: @escaping (Int) -> Void) {
     self.settings = settings
@@ -127,15 +155,34 @@ private struct GameView: View {
 
   var body: some View {
     ZStack {
-      SpriteView(scene: scene, options: [.ignoresSiblingOrder])
-        .ignoresSafeArea()
       #if os(macOS)
-        KeyboardCaptureView { horizontal, vertical in
-          scene.movePhantom(horizontal: horizontal, vertical: vertical)
-        }
-        .frame(width: 1, height: 1)
-        keyboardShortcuts
+        GameSceneView(scene: scene)
+          .ignoresSafeArea()
+      #else
+        SpriteView(scene: scene, options: [.ignoresSiblingOrder])
+          .ignoresSafeArea()
       #endif
+
+      if showsControlHint {
+        VStack {
+          Spacer()
+          #if os(macOS)
+            Label(
+              "Move: arrow keys or WASD • Drag the ghost • Click or swipe pumpkins",
+              systemImage: "keyboard")
+          #else
+            Label("Tilt or drag the ghost • Tap or swipe pumpkins", systemImage: "hand.draw.fill")
+          #endif
+        }
+        .font(.caption.weight(.bold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.black.opacity(0.72), in: Capsule())
+        .padding(.bottom, 18)
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
+        .allowsHitTesting(false)
+      }
     }
     .onAppear {
       scene.gameOverHandler = onGameOver
@@ -145,41 +192,18 @@ private struct GameView: View {
           scene.view?.window?.makeFirstResponder(scene.view)
         }
       #endif
+      Task { @MainActor in
+        try? await Task.sleep(for: .seconds(5))
+        withAnimation(.easeOut(duration: 0.4)) {
+          showsControlHint = false
+        }
+      }
     }
     .onDisappear {
       scene.stopMotionUpdates()
       AudioManager.shared.stopMusic()
     }
   }
-
-  #if os(macOS)
-    private var keyboardShortcuts: some View {
-      ZStack {
-        shortcutButton(.leftArrow, horizontal: -24, vertical: 0)
-        shortcutButton(.rightArrow, horizontal: 24, vertical: 0)
-        shortcutButton(.upArrow, horizontal: 0, vertical: 24)
-        shortcutButton(.downArrow, horizontal: 0, vertical: -24)
-        shortcutButton("a", horizontal: -24, vertical: 0)
-        shortcutButton("d", horizontal: 24, vertical: 0)
-        shortcutButton("w", horizontal: 0, vertical: 24)
-        shortcutButton("s", horizontal: 0, vertical: -24)
-      }
-      .frame(width: 1, height: 1)
-      .opacity(0.001)
-      .accessibilityHidden(true)
-    }
-
-    private func shortcutButton(
-      _ key: KeyEquivalent,
-      horizontal: CGFloat,
-      vertical: CGFloat
-    ) -> some View {
-      Button("") {
-        scene.movePhantom(horizontal: horizontal, vertical: vertical)
-      }
-      .keyboardShortcut(key, modifiers: [])
-    }
-  #endif
 }
 
 private struct GameOverView: View {
@@ -188,45 +212,66 @@ private struct GameOverView: View {
   let highScore: Int
 
   var body: some View {
-    ZStack {
-      GameArtwork(name: "gameover")
-      VStack(spacing: 12) {
-        Spacer().frame(height: 70)
-        Text("GAME OVER")
-          .font(.system(size: 44, weight: .black, design: .rounded))
-          .foregroundStyle(.orange)
-        scoreRow("High Score", highScore)
-        scoreRow("Most Recent Score", score)
-        Spacer()
-        Button {
-          model.showStart()
-        } label: {
-          ImageButton(name: "button-death", size: 145)
+    GeometryReader { _ in
+      ZStack {
+        GameArtwork(name: "gameover")
+        VStack(spacing: 16) {
+          Text("GAME OVER")
+            .font(.system(size: 42, weight: .black, design: .rounded))
+            .foregroundStyle(.orange)
+            .shadow(color: .black.opacity(0.75), radius: 4, y: 2)
+
+          VStack(spacing: 16) {
+            scoreRow("High Score", highScore, icon: "trophy.fill")
+            Divider().overlay(.white.opacity(0.22))
+            scoreRow("This Run", score, icon: "flag.checkered")
+          }
+          .padding(22)
+          .frame(maxWidth: 350)
+          .background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 20))
+          .overlay(
+            RoundedRectangle(cornerRadius: 20)
+              .stroke(.orange.opacity(0.85), lineWidth: 1.5)
+          )
+
+          Button {
+            model.beginGame()
+          } label: {
+            Label("Play again", systemImage: "arrow.clockwise.circle.fill")
+              .font(.title3.bold())
+              .frame(maxWidth: 230)
+              .padding(.vertical, 10)
+          }
+          .buttonStyle(.borderedProminent)
+          .tint(.orange)
+          .accessibilityLabel("Play again")
+
+          HStack(spacing: 12) {
+            Button("Home") { model.showStart() }
+              .buttonStyle(.bordered)
+            ShareLink(item: "I scored \(score) points in PumkinRaid!") {
+              Label("Share", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.bordered)
+          }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Play again")
-        Text("Play again")
-          .font(.headline)
-        ShareLink(item: "I scored \(score) points in PumkinRaid!") {
-          Label("Share score", systemImage: "square.and.arrow.up")
-        }
-        .buttonStyle(.bordered)
-        Spacer().frame(height: 40)
+        .padding(.horizontal, 28)
+        .padding(.vertical, 72)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        .foregroundStyle(.white)
       }
-      .padding(30)
-      .foregroundStyle(.white)
     }
     .ignoresSafeArea()
   }
 
-  private func scoreRow(_ title: String, _ value: Int) -> some View {
+  private func scoreRow(_ title: String, _ value: Int, icon: String) -> some View {
     HStack {
-      Text(title)
+      Label(title, systemImage: icon)
       Spacer()
       Text("\(value) points")
+        .monospacedDigit()
     }
-    .font(.title3.bold())
-    .frame(maxWidth: 330)
+    .font(.headline.bold())
   }
 }
 

@@ -73,4 +73,13 @@ final class GameSessionTests: XCTestCase {
     XCTAssertEqual(session.lives, 11)
     XCTAssertEqual(session.pointsTowardExtraLife, 1_000)
   }
+
+  func testComboBonusUsesTheSameScoreAndExtraLifeRules() {
+    var session = GameSession()
+    XCTAssertEqual(session.awardBonus(125), 125)
+    XCTAssertEqual(session.score, 125)
+    XCTAssertEqual(session.pointsTowardExtraLife, 125)
+    XCTAssertEqual(session.awardBonus(-10), 0)
+    XCTAssertEqual(session.score, 125)
+  }
 }

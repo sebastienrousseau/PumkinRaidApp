@@ -32,6 +32,9 @@ final class GameScene: SKScene {
   private var bonusElapsed: TimeInterval = 0
   private var sliceRechargeElapsed: TimeInterval = 0
   private var boomRechargeElapsed: TimeInterval = 0
+  private var survivalElapsed: TimeInterval = 0
+  private var comboCount = 0
+  private var lastPumpkinDestroyedAt: TimeInterval = 0
   private var dragStart: CGPoint?
   private var draggingPhantom = false
   private var didSliceDuringGesture = false
@@ -57,7 +60,6 @@ final class GameScene: SKScene {
     startMotionUpdates()
     AudioManager.shared.play("creaking_door", enabled: settings.effectsEnabled)
     #if os(macOS)
-      MacKeyboardRouter.shared.scene = self
       DispatchQueue.main.async {
         view.window?.makeFirstResponder(view)
         NSApp.activate(ignoringOtherApps: true)
@@ -172,9 +174,7 @@ final class GameScene: SKScene {
     let delta = lastUpdateTime == 0 ? 0 : min(currentTime - lastUpdateTime, 0.1)
     lastUpdateTime = currentTime
     guard delta > 0 else { return }
-    #if os(macOS)
-      pollKeyboard(delta: delta)
-    #endif
+    survivalElapsed += delta
     moveEnemies(by: delta)
     moveBonus(by: delta)
     updateRechargeTimers(by: delta)
@@ -182,12 +182,14 @@ final class GameScene: SKScene {
   }
 
   private func moveEnemies(by delta: TimeInterval) {
+    let difficultyMultiplier = min(1.6, 1 + CGFloat(survivalElapsed / 150))
     for enemy in enemies {
       let speed = enemy.userData?["speed"] as? CGFloat ?? 100
-      enemy.position.y -= speed * CGFloat(delta)
+      enemy.position.y -= speed * difficultyMultiplier * CGFloat(delta)
 
       if enemy.frame.insetBy(dx: 10, dy: 8).intersects(phantom.frame.insetBy(dx: 12, dy: 10)) {
         session.collideWithPumpkin()
+        comboCount = 0
         AudioManager.shared.play("bow_wah", enabled: settings.effectsEnabled)
         provideHitFeedback()
         showCallout("OUCH!", at: phantom.position, color: .red)
@@ -328,7 +330,15 @@ final class GameScene: SKScene {
     guard let enemy = enemies.first(where: { hitArea.contains($0.position) }) else { return false }
     let succeeded = usingSlice ? session.slicePumpkin() : session.boomPumpkin()
     guard succeeded else { return false }
-    let callout = usingSlice ? "SLICED!" : "BOOM!"
+    let now = CACurrentMediaTime()
+    comboCount = now - lastPumpkinDestroyedAt <= 1.8 ? comboCount + 1 : 1
+    lastPumpkinDestroyedAt = now
+    let comboBonus = comboCount >= 2 ? session.awardBonus(min(comboCount, 10) * 5) : 0
+    let action = usingSlice ? "SLICED!" : "BOOM!"
+    let callout =
+      comboBonus > 0
+      ? action + "  x" + String(comboCount) + "  +" + String(comboBonus)
+      : action
     let sound = usingSlice ? "slice" : "explode"
     showCallout(callout, at: enemy.position, color: .orange)
     AudioManager.shared.play(sound, enabled: settings.effectsEnabled)
@@ -367,25 +377,6 @@ final class GameScene: SKScene {
       CGPoint(x: phantom.position.x + horizontal, y: phantom.position.y + vertical)
     )
   }
-
-  #if os(macOS)
-    private func pollKeyboard(delta: TimeInterval) {
-      let left = keyIsDown(123) || keyIsDown(0)
-      let right = keyIsDown(124) || keyIsDown(2)
-      let down = keyIsDown(125) || keyIsDown(1)
-      let up = keyIsDown(126) || keyIsDown(13)
-      let speed = CGFloat(230 * delta)
-      let horizontal = (right ? speed : 0) - (left ? speed : 0)
-      let vertical = (up ? speed : 0) - (down ? speed : 0)
-      guard horizontal != 0 || vertical != 0 else { return }
-      movePhantom(horizontal: horizontal, vertical: vertical)
-    }
-
-    private func keyIsDown(_ key: CGKeyCode) -> Bool {
-      CGEventSource.keyState(.hidSystemState, key: key)
-        || CGEventSource.keyState(.combinedSessionState, key: key)
-    }
-  #endif
 
   func startMotionUpdates() {
     #if os(iOS)
@@ -431,32 +422,6 @@ final class GameScene: SKScene {
       endGesture(at: touch.location(in: self))
     }
   #elseif os(macOS)
-    override func willMove(from view: SKView) {
-      super.willMove(from: view)
-    }
-
-    @discardableResult
-    private func movePhantom(for event: NSEvent) -> Bool {
-      let distance: CGFloat = event.isARepeat ? 12 : 20
-      var target = phantom.position
-      switch event.keyCode {
-      case 123: target.x -= distance
-      case 124: target.x += distance
-      case 125: target.y -= distance
-      case 126: target.y += distance
-      default:
-        switch event.charactersIgnoringModifiers?.lowercased() {
-        case "a": target.x -= distance
-        case "d": target.x += distance
-        case "s": target.y -= distance
-        case "w": target.y += distance
-        default: return false
-        }
-      }
-      phantom.position = clampedPhantomPosition(target)
-      return true
-    }
-
     private func sceneLocation(for event: NSEvent) -> CGPoint {
       guard let view else { return .zero }
       let viewPoint = view.convert(event.locationInWindow, from: nil)
@@ -466,7 +431,5 @@ final class GameScene: SKScene {
     override func mouseDown(with event: NSEvent) { beginGesture(at: sceneLocation(for: event)) }
     override func mouseDragged(with event: NSEvent) { moveGesture(to: sceneLocation(for: event)) }
     override func mouseUp(with event: NSEvent) { endGesture(at: sceneLocation(for: event)) }
-    override func keyDown(with event: NSEvent) { _ = movePhantom(for: event) }
-
   #endif
 }

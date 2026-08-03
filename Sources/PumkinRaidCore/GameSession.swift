@@ -43,6 +43,12 @@ public struct GameSession: Equatable, Sendable {
     return addScore(GameRules.sweetScores[kind])
   }
 
+  @discardableResult
+  public mutating func awardBonus(_ points: Int) -> Int {
+    guard !isGameOver else { return 0 }
+    return addScore(points)
+  }
+
   public mutating func rechargeSlices(_ amount: Int = 2) {
     slices = min(GameRules.maximumSlices, slices + max(0, amount))
   }
