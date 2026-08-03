@@ -50,6 +50,12 @@ final class GameScene: SKScene {
   private var gameEnded = false
   private var needsInitialPhantomPlacement = true
 
+  private var verticalPlayfieldScale: CGFloat { max(0.72, size.height / 568) }
+  private var horizontalPlayfieldScale: CGFloat { max(0.72, size.width / 320) }
+  private var spriteScale: CGFloat {
+    min(1.65, max(0.78, min(size.width / 430, size.height / 720)))
+  }
+
   init(settings: GameSettings) {
     self.settings = settings
     let seed = UInt64(Date().timeIntervalSince1970 * 1_000_000) ^ UInt64.random(in: .min ... .max)
@@ -152,7 +158,7 @@ final class GameScene: SKScene {
 
   private func buildPhantom() {
     phantom.name = "phantom"
-    phantom.size = CGSize(width: 72, height: 76)
+    resizePhantom()
     phantom.position = CGPoint(x: size.width / 2, y: 70)
     phantom.zPosition = 5
     world.addChild(phantom)
@@ -173,6 +179,7 @@ final class GameScene: SKScene {
   }
 
   override func didChangeSize(_ oldSize: CGSize) {
+    remapGameplay(from: oldSize)
     if let background = childNode(withName: "//background") as? SKSpriteNode {
       let aspectRatio = size.width / max(1, size.height)
       let assetName = aspectRatio >= 1.15 ? "background-wide" : (aspectRatio >= 0.7 ? "background-tablet" : "background")
@@ -181,9 +188,50 @@ final class GameScene: SKScene {
       background.position = CGPoint(x: size.width / 2, y: size.height / 2)
     }
     layoutHUD()
+    resizePhantom()
+    resizeDynamicNodes()
     placePhantomAtStartIfNeeded()
-    phantom.position.x = min(
-      max(phantom.position.x, phantom.size.width / 2), size.width - phantom.size.width / 2)
+    phantom.position = clampedPhantomPosition(phantom.position)
+  }
+
+  private func remapGameplay(from oldSize: CGSize) {
+    guard oldSize.width > 0, oldSize.height > 0, oldSize != size else { return }
+    let horizontalRatio = size.width / oldSize.width
+    let verticalRatio = size.height / oldSize.height
+
+    for enemy in enemies {
+      enemy.position.x *= horizontalRatio
+      enemy.position.y = enemy.position.y > oldSize.height
+        ? size.height + (enemy.position.y - oldSize.height) * verticalRatio
+        : enemy.position.y * verticalRatio
+    }
+    if let bonus {
+      bonus.position.x *= horizontalRatio
+      bonus.position.y = bonus.position.y > oldSize.height
+        ? size.height + (bonus.position.y - oldSize.height) * verticalRatio
+        : bonus.position.y * verticalRatio
+    }
+    if !needsInitialPhantomPlacement {
+      phantom.position = CGPoint(
+        x: phantom.position.x * horizontalRatio,
+        y: phantom.position.y * verticalRatio
+      )
+    }
+  }
+
+  private func resizePhantom() {
+    phantom.size = CGSize(width: 72 * spriteScale, height: 76 * spriteScale)
+  }
+
+  private func resizeDynamicNodes() {
+    for enemy in enemies {
+      let planScale = enemy.userData?["spawnScale"] as? CGFloat ?? 1
+      enemy.size = CGSize(
+        width: 71 * planScale * spriteScale,
+        height: 61 * planScale * spriteScale
+      )
+    }
+    bonus?.size = CGSize(width: 50 * spriteScale, height: 50 * spriteScale)
   }
 
   private func placePhantomAtStartIfNeeded() {
@@ -214,9 +262,9 @@ final class GameScene: SKScene {
     let difficultyMultiplier = min(1.6, 1 + CGFloat(survivalElapsed / 150))
     for enemy in enemies {
       let speed = enemy.userData?["speed"] as? CGFloat ?? 100
-      enemy.position.y -= speed * difficultyMultiplier * CGFloat(delta)
+      enemy.position.y -= speed * verticalPlayfieldScale * difficultyMultiplier * CGFloat(delta)
       let drift = enemy.userData?["drift"] as? CGFloat ?? 0
-      enemy.position.x += drift * CGFloat(delta)
+      enemy.position.x += drift * horizontalPlayfieldScale * CGFloat(delta)
       let halfWidth = enemy.size.width / 2
       if enemy.position.x < halfWidth || enemy.position.x > size.width - halfWidth {
         enemy.userData?["drift"] = -drift
@@ -254,17 +302,18 @@ final class GameScene: SKScene {
     _ enemy: SKSpriteNode, initialOffset: Double = 0, textures: [SKTexture]
   ) {
     let plan = spawnDirector.nextPlan(elapsedTime: survivalElapsed, score: session.score)
-    let baseSize = CGSize(width: 71, height: 61)
+    let baseSize = CGSize(width: 71 * spriteScale, height: 61 * spriteScale)
     enemy.size = CGSize(
       width: baseSize.width * plan.scale,
       height: baseSize.height * plan.scale
     )
     enemy.position = CGPoint(
       x: CGFloat(plan.horizontalPosition) * size.width,
-      y: size.height + 70 + CGFloat(plan.verticalOffset + initialOffset)
+      y: size.height + (70 + CGFloat(plan.verticalOffset + initialOffset)) * verticalPlayfieldScale
     )
     enemy.userData?["speed"] = CGFloat(plan.speed)
     enemy.userData?["drift"] = CGFloat(plan.horizontalDrift)
+    enemy.userData?["spawnScale"] = CGFloat(plan.scale)
     enemy.removeAction(forKey: "animation")
     enemy.run(
       .repeatForever(.animate(with: textures, timePerFrame: plan.animationRate)),
@@ -280,7 +329,7 @@ final class GameScene: SKScene {
       nextBonusDelay = spawnDirector.nextBonusDelay()
     }
     guard let bonus else { return }
-    bonus.position.y -= 82 * CGFloat(delta)
+    bonus.position.y -= 82 * verticalPlayfieldScale * CGFloat(delta)
     if bonus.frame.intersects(phantom.frame) {
       let points = session.collectSweet(kind: bonusKind)
       showCallout("+\(points)", at: bonus.position, color: .yellow)
@@ -300,11 +349,11 @@ final class GameScene: SKScene {
     let textures = (1...3).map { AssetLoader.texture("\(prefix)sweet\($0)") }
     let node = SKSpriteNode(texture: textures[0])
     node.name = "sweet"
-    node.size = CGSize(width: 50, height: 50)
+    node.size = CGSize(width: 50 * spriteScale, height: 50 * spriteScale)
     let plan = spawnDirector.nextPlan(elapsedTime: survivalElapsed, score: session.score)
     node.position = CGPoint(
       x: CGFloat(plan.horizontalPosition) * size.width,
-      y: size.height + 70 + CGFloat(plan.verticalOffset)
+      y: size.height + (70 + CGFloat(plan.verticalOffset)) * verticalPlayfieldScale
     )
     node.zPosition = 4
     node.run(.repeatForever(.animate(with: textures, timePerFrame: 0.2)))
@@ -499,7 +548,10 @@ final class GameScene: SKScene {
         vertical *= 0.707
       }
       let distance = CGFloat(delta) * 260
-      movePhantom(horizontal: horizontal * distance, vertical: vertical * distance)
+      movePhantom(
+        horizontal: horizontal * distance * horizontalPlayfieldScale,
+        vertical: vertical * distance * verticalPlayfieldScale
+      )
     }
 
   #endif
@@ -526,8 +578,8 @@ final class GameScene: SKScene {
         vertical /= magnitude
       }
       movePhantom(
-        horizontal: horizontal * CGFloat(delta) * 300,
-        vertical: vertical * CGFloat(delta) * 300
+        horizontal: horizontal * CGFloat(delta) * 300 * horizontalPlayfieldScale,
+        vertical: vertical * CGFloat(delta) * 300 * verticalPlayfieldScale
       )
     }
 

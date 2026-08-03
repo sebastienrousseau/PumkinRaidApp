@@ -1,0 +1,15 @@
+{
+  "originHash" : "8294f8d6bdc4f36547f784ca6c02614cdfa87492041812a7f297891b37d336a4",
+  "pins" : [
+    {
+      "identity" : "gameenginelib",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sebastienrousseau/GameEngineLib.git",
+      "state" : {
+        "revision" : "91086904f1691affc0d689cb7dfefef2457e877e",
+        "version" : "0.1.1"
+      }
+    }
+  ],
+  "version" : 3
+}
