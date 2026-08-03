@@ -7,14 +7,27 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: swift-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
-    runs-on: macos-15
-    timeout-minutes: 15
+    runs-on: macos-26
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Build
-        run: swift build
-      - name: Test game rules
-        run: swift test
+      - name: Toolchain
+        run: swift --version
+      - name: Build release
+        run: swift build -c release
+      - name: Test game engine
+        run: swift test --parallel
+      - name: Verify pure Swift sources
+        run: |
+          if find Sources -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.m' -o -name '*.mm' \) | grep -q .; then
+            echo 'Non-Swift source detected under Sources/'
+            exit 1
+          fi

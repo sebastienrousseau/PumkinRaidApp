@@ -23,12 +23,12 @@ final class AudioManager {
       player.volume = 1
       player.prepareToPlay()
       guard player.play() else {
-        print("PumkinRaid: the music player could not start")
+        print("PumkinRaidApp: the music player could not start")
         return
       }
       musicPlayer = player
     } catch {
-      print("PumkinRaid: failed to load music: \(error)")
+      print("PumkinRaidApp: failed to load music: \(error)")
     }
   }
 
@@ -60,12 +60,12 @@ final class AudioManager {
       player.volume = 1
       player.prepareToPlay()
       guard player.play() else {
-        print("PumkinRaid: effect '\(name)' could not start")
+        print("PumkinRaidApp: effect '\(name)' could not start")
         return
       }
       effectPlayers.append(player)
     } catch {
-      print("PumkinRaid: failed to load effect '\(name)': \(error)")
+      print("PumkinRaidApp: failed to load effect '\(name)': \(error)")
     }
   }
 }

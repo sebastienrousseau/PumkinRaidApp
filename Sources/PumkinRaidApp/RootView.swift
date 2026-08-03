@@ -1,4 +1,4 @@
-import PumkinRaidCore
+import GameEngineLib
 import SpriteKit
 import SwiftUI
 
@@ -17,10 +17,13 @@ struct RootView: View {
         GameView(settings: model.settings) { score in
           model.finishGame(score: score)
         }
-      case .gameOver(let score, let highScore):
-        GameOverView(score: score, highScore: highScore)
+      case .gameOver(let score, let leaderboard, let entryID):
+        GameOverView(score: score, leaderboard: leaderboard, entryID: entryID)
       }
     }
+    .id(model.screen.transitionID)
+    .transition(.opacity.combined(with: .scale(scale: 0.985)))
+    .animation(.easeInOut(duration: 0.32), value: model.screen.transitionID)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color.black)
     .onChange(of: model.settings.musicEnabled) { _, enabled in
@@ -101,18 +104,20 @@ private struct StartView: View {
         Button {
           model.showSettings()
         } label: {
-          Image(systemName: "info.circle.fill")
-            .font(.system(size: 21, weight: .semibold))
-            .symbolRenderingMode(.palette)
-            .foregroundStyle(.white, .orange)
-            .frame(width: 42, height: 42)
-            .background(.black.opacity(0.58), in: Circle())
-            .overlay(Circle().stroke(.white.opacity(0.65), lineWidth: 1))
-            .shadow(color: .black.opacity(0.45), radius: 8, y: 3)
+          Image(systemName: "info")
+            .font(.system(size: 16, weight: .black, design: .rounded))
+            .foregroundStyle(.white)
+            .frame(width: 36, height: 36)
+            .background(.ultraThinMaterial, in: Circle())
+            .overlay(Circle().stroke(.orange.opacity(0.9), lineWidth: 1.5))
+            .shadow(color: .orange.opacity(0.28), radius: 10)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Settings and game guide")
-        .position(x: proxy.size.width - 34, y: 46)
+        .position(
+          x: proxy.size.width - max(26, proxy.safeAreaInsets.trailing + 26),
+          y: max(30, proxy.safeAreaInsets.top + 25)
+        )
       }
       .frame(width: proxy.size.width, height: proxy.size.height)
       .clipped()
@@ -169,11 +174,11 @@ private struct SettingsView: View {
 
 private struct GameView: View {
   @EnvironmentObject private var model: AppModel
-  let settings: PumkinRaidCore.GameSettings
+  let settings: GameEngineLib.GameSettings
   let onGameOver: (Int) -> Void
   @State private var scene: GameScene
 
-  init(settings: PumkinRaidCore.GameSettings, onGameOver: @escaping (Int) -> Void) {
+  init(settings: GameEngineLib.GameSettings, onGameOver: @escaping (Int) -> Void) {
     self.settings = settings
     self.onGameOver = onGameOver
     _scene = State(initialValue: GameScene(settings: settings))
@@ -210,12 +215,15 @@ private struct GameView: View {
 private struct GameOverView: View {
   @EnvironmentObject private var model: AppModel
   let score: Int
-  let highScore: Int
+  let leaderboard: Leaderboard
+  let entryID: UUID
 
   var body: some View {
     GeometryReader { proxy in
-      let cardWidth = min(370, max(280, proxy.size.width - 40))
-      let cardHeight: CGFloat = 169
+      let cardWidth = min(560, max(300, proxy.size.width - 48))
+      let visibleEntries = Array(leaderboard.entries.prefix(proxy.size.height < 620 ? 3 : 5))
+      let rowHeight: CGFloat = proxy.size.height < 620 ? 40 : 48
+      let cardHeight = 76 + rowHeight * CGFloat(max(1, visibleEntries.count))
       let centerY = proxy.size.height / 2
       ZStack {
         GameArtwork(name: "gameover")
@@ -229,17 +237,34 @@ private struct GameOverView: View {
           )
           .foregroundStyle(.orange)
           .shadow(color: .black.opacity(0.75), radius: 4, y: 2)
-          .position(x: proxy.size.width / 2, y: centerY - cardHeight / 2 - 48)
+          .position(x: proxy.size.width / 2, y: max(58, centerY - cardHeight / 2 - 52))
 
         VStack(spacing: 0) {
-          scoreRow("High Score", highScore, icon: "trophy.fill")
-            .frame(height: 58)
-          Divider().overlay(.white.opacity(0.22))
-          scoreRow("This Run", score, icon: "flag.checkered")
-            .frame(height: 58)
+          HStack {
+            Label("LOCAL LEADERBOARD", systemImage: "trophy.fill")
+            Spacer()
+            Text("BEST  \(leaderboard.bestScore)")
+              .monospacedDigit()
+          }
+          .font(.subheadline.weight(.heavy))
+          .foregroundStyle(.orange)
+          .frame(height: 50)
+
+          Divider().overlay(.white.opacity(0.25))
+
+          if visibleEntries.isEmpty {
+            Text("Complete a run to claim the first place.")
+              .foregroundStyle(.white.opacity(0.8))
+              .frame(height: rowHeight)
+          } else {
+            ForEach(Array(visibleEntries.enumerated()), id: \.element.id) { index, entry in
+              leaderboardRow(rank: index + 1, entry: entry)
+                .frame(height: rowHeight)
+            }
+          }
         }
-        .padding(.horizontal, 26)
-        .padding(.vertical, 26)
+        .padding(.horizontal, min(30, cardWidth * 0.07))
+        .padding(.vertical, 12)
         .frame(width: cardWidth, height: cardHeight)
         .background(.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 20))
         .overlay(
@@ -264,30 +289,41 @@ private struct GameOverView: View {
           HStack(spacing: 12) {
             Button("Home") { model.showStart() }
               .buttonStyle(.bordered)
-            ShareLink(item: "I scored \(score) points in PumkinRaid!") {
-              Label("Share", systemImage: "square.and.arrow.up")
-            }
-            .buttonStyle(.bordered)
+            #if !os(tvOS)
+              ShareLink(item: "I scored \(score) points in Pumkin Raid!") {
+                Label("Share", systemImage: "square.and.arrow.up")
+              }
+              .buttonStyle(.bordered)
+            #endif
           }
         }
         .foregroundStyle(.white)
         .position(
           x: proxy.size.width / 2,
-          y: min(proxy.size.height - 76, centerY + cardHeight / 2 + 102)
+          y: min(proxy.size.height - 70, centerY + cardHeight / 2 + 88)
         )
       }
     }
     .ignoresSafeArea()
   }
 
-  private func scoreRow(_ title: String, _ value: Int, icon: String) -> some View {
+  private func leaderboardRow(rank: Int, entry: LeaderboardEntry) -> some View {
     HStack {
-      Label(title, systemImage: icon)
+      Text("#\(rank)")
+        .frame(width: 34, alignment: .leading)
+        .foregroundStyle(rank == 1 ? .yellow : .white.opacity(0.65))
+      Text(entry.playerName)
       Spacer()
-      Text("\(value) points")
+      Text("\(entry.score)")
         .monospacedDigit()
     }
-    .font(.headline.bold())
+    .font(.headline.weight(entry.id == entryID ? .heavy : .semibold))
+    .foregroundStyle(entry.id == entryID ? .orange : .white)
+    .padding(.horizontal, 8)
+    .background(
+      entry.id == entryID ? Color.orange.opacity(0.14) : .clear,
+      in: RoundedRectangle(cornerRadius: 9)
+    )
   }
 }
 
@@ -295,10 +331,26 @@ private struct GameArtwork: View {
   let name: String
 
   var body: some View {
-    BundledImage(name: name)
-      .scaledToFill()
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
-      .clipped()
+    GeometryReader { proxy in
+      let aspect = proxy.size.width / max(1, proxy.size.height)
+      let candidate = adaptiveName(for: aspect)
+      BundledImage(name: AssetLoader.imageURL(candidate) == nil ? name : candidate)
+        .scaledToFill()
+        .frame(width: proxy.size.width, height: proxy.size.height)
+        .clipped()
+    }
+  }
+
+  private func adaptiveName(for aspect: CGFloat) -> String {
+    if name == "background", aspect >= 1.15 { return "background-wide" }
+    guard aspect >= 0.7 else { return name }
+    switch name {
+    case "background": return "background-tablet"
+    case "splashscreen": return "splashscreen-tablet"
+    case "gameover": return "gameover-tablet"
+    case "setting_background": return "setting-background-tablet"
+    default: return name
+    }
   }
 }
 
@@ -318,7 +370,7 @@ private struct BundledImage: View {
   let name: String
 
   var body: some View {
-    #if os(iOS)
+    #if os(iOS) || os(tvOS)
       if let image = AssetLoader.image(name) {
         Image(uiImage: image)
           .resizable()

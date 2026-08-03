@@ -33,7 +33,7 @@
         backing: .buffered,
         defer: false
       )
-      window.title = "PumkinRaid"
+      window.title = "Pumkin Raid"
       window.titleVisibility = .hidden
       window.titlebarAppearsTransparent = true
       window.minSize = NSSize(width: 320, height: 568)
@@ -84,7 +84,7 @@
       let applicationItem = NSMenuItem()
       let applicationMenu = NSMenu()
       applicationMenu.addItem(
-        withTitle: "Quit PumkinRaid",
+        withTitle: "Quit Pumkin Raid",
         action: #selector(NSApplication.terminate(_:)),
         keyEquivalent: "q"
       )

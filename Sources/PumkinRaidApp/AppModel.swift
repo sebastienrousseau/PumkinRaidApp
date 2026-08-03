@@ -1,6 +1,6 @@
 import Combine
 import Foundation
-import PumkinRaidCore
+import GameEngineLib
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -8,19 +8,41 @@ final class AppModel: ObservableObject {
     case start
     case settings
     case game
-    case gameOver(score: Int, highScore: Int)
+    case gameOver(score: Int, leaderboard: Leaderboard, entryID: UUID)
+
+    var transitionID: String {
+      switch self {
+      case .start: "start"
+      case .settings: "settings"
+      case .game: "game"
+      case .gameOver: "gameOver"
+      }
+    }
   }
 
   @Published var screen: Screen = .start
   @Published var settings: GameSettings { didSet { saveSettings() } }
+  @Published private(set) var leaderboard: Leaderboard
   weak var activeGameScene: GameScene?
 
   private let defaults: UserDefaults
-  private static let settingsKey = "PumkinRaid.settings"
-  private static let highScoreKey = "PumkinRaid.highScore"
+  private static let settingsKey = "PumkinRaidApp.settings.v1"
+  private static let leaderboardKey = "PumkinRaidApp.leaderboard.v1"
+  private static let legacyHighScoreKey = "PumkinRaid.highScore"
 
   init(defaults: UserDefaults = .standard) {
     self.defaults = defaults
+    if let data = defaults.data(forKey: Self.leaderboardKey),
+      let decoded = try? JSONDecoder().decode(Leaderboard.self, from: data)
+    {
+      leaderboard = decoded
+    } else {
+      let legacyScore = defaults.integer(forKey: Self.legacyHighScoreKey)
+      leaderboard = Leaderboard(
+        entries: legacyScore > 0
+          ? [LeaderboardEntry(playerName: "Local Best", score: legacyScore)] : []
+      )
+    }
     if let data = defaults.data(forKey: Self.settingsKey),
       let decoded = try? JSONDecoder().decode(GameSettings.self, from: data)
     {
@@ -44,9 +66,12 @@ final class AppModel: ObservableObject {
       KeyboardState.shared.clear()
     #endif
     activeGameScene = nil
-    let highScore = max(score, defaults.integer(forKey: Self.highScoreKey))
-    defaults.set(highScore, forKey: Self.highScoreKey)
-    screen = .gameOver(score: score, highScore: highScore)
+    let entry = LeaderboardEntry(playerName: "You", score: score)
+    leaderboard.submit(entry)
+    if let data = try? JSONEncoder().encode(leaderboard) {
+      defaults.set(data, forKey: Self.leaderboardKey)
+    }
+    screen = .gameOver(score: score, leaderboard: leaderboard, entryID: entry.id)
   }
 
   func movePhantom(horizontal: CGFloat, vertical: CGFloat) {

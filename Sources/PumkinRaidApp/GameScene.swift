@@ -1,12 +1,15 @@
-import CoreMotion
 import Foundation
-import PumkinRaidCore
+import GameEngineLib
 import SpriteKit
 
 #if os(iOS)
+  import CoreMotion
   import UIKit
 #elseif os(macOS)
   import AppKit
+#elseif os(tvOS)
+  import GameController
+  import UIKit
 #endif
 
 @MainActor
@@ -15,6 +18,8 @@ final class GameScene: SKScene {
 
   private let settings: GameSettings
   private var session = GameSession()
+  private var spawnDirector: SpawnDirector
+  private var comboTracker = ComboTracker()
   #if os(iOS)
     private let motionManager = CMMotionManager()
   #endif
@@ -33,16 +38,22 @@ final class GameScene: SKScene {
   private var sliceRechargeElapsed: TimeInterval = 0
   private var boomRechargeElapsed: TimeInterval = 0
   private var survivalElapsed: TimeInterval = 0
-  private var comboCount = 0
-  private var lastPumpkinDestroyedAt: TimeInterval = 0
+  private var nextBonusDelay: TimeInterval = 3
+  #if os(iOS) || os(tvOS)
+    private var digitalHorizontal: CGFloat = 0
+    private var digitalVertical: CGFloat = 0
+  #endif
   private var dragStart: CGPoint?
+  private var lastGesturePoint: CGPoint?
   private var draggingPhantom = false
-  private var didSliceDuringGesture = false
+  private var gestureHitCount = 0
   private var gameEnded = false
   private var needsInitialPhantomPlacement = true
 
   init(settings: GameSettings) {
     self.settings = settings
+    let seed = UInt64(Date().timeIntervalSince1970 * 1_000_000) ^ UInt64.random(in: .min ... .max)
+    spawnDirector = SpawnDirector(seed: seed)
     super.init(size: CGSize(width: 320, height: 568))
     scaleMode = .resizeFill
     backgroundColor = .black
@@ -61,6 +72,7 @@ final class GameScene: SKScene {
       self?.placePhantomAtStartIfNeeded()
     }
     buildEnemies()
+    nextBonusDelay = spawnDirector.nextBonusDelay()
     startMotionUpdates()
     AudioManager.shared.play("creaking_door", enabled: settings.effectsEnabled)
     #if os(macOS)
@@ -72,7 +84,9 @@ final class GameScene: SKScene {
   }
 
   private func buildBackground() {
-    let background = SKSpriteNode(texture: AssetLoader.texture("background"))
+    let aspectRatio = size.width / max(1, size.height)
+    let assetName = aspectRatio >= 1.15 ? "background-wide" : (aspectRatio >= 0.7 ? "background-tablet" : "background")
+    let background = SKSpriteNode(texture: AssetLoader.texture(assetName))
     background.name = "background"
     background.anchorPoint = CGPoint(x: 0.5, y: 0.5)
     background.position = CGPoint(x: size.width / 2, y: size.height / 2)
@@ -150,26 +164,19 @@ final class GameScene: SKScene {
       let enemy = SKSpriteNode(texture: textures[0])
       enemy.name = "pumpkin"
       enemy.size = CGSize(width: 71, height: 61)
-      enemy.position = spawnPosition(offset: CGFloat(index) * 95)
       enemy.userData = NSMutableDictionary()
-      enemy.userData?["speed"] = CGFloat(76 + index * 23)
       enemy.zPosition = 3
-      enemy.run(
-        .repeatForever(.animate(with: textures, timePerFrame: 0.18 + Double(index) * 0.025)))
+      configureSpawn(enemy, initialOffset: Double(index) * 82, textures: textures)
       enemies.append(enemy)
       world.addChild(enemy)
     }
   }
 
-  private func spawnPosition(offset: CGFloat = 0) -> CGPoint {
-    CGPoint(
-      x: CGFloat.random(in: 40...max(41, size.width - 40)),
-      y: size.height + 70 + offset
-    )
-  }
-
   override func didChangeSize(_ oldSize: CGSize) {
     if let background = childNode(withName: "//background") as? SKSpriteNode {
+      let aspectRatio = size.width / max(1, size.height)
+      let assetName = aspectRatio >= 1.15 ? "background-wide" : (aspectRatio >= 0.7 ? "background-tablet" : "background")
+      background.texture = AssetLoader.texture(assetName)
       resizeBackground(background)
       background.position = CGPoint(x: size.width / 2, y: size.height / 2)
     }
@@ -193,6 +200,8 @@ final class GameScene: SKScene {
     guard delta > 0 else { return }
     #if os(macOS)
       movePhantomFromHardwareKeyboard(delta: delta)
+    #elseif os(iOS) || os(tvOS)
+      movePhantomFromDigitalInput(delta: delta)
     #endif
     survivalElapsed += delta
     moveEnemies(by: delta)
@@ -206,10 +215,17 @@ final class GameScene: SKScene {
     for enemy in enemies {
       let speed = enemy.userData?["speed"] as? CGFloat ?? 100
       enemy.position.y -= speed * difficultyMultiplier * CGFloat(delta)
+      let drift = enemy.userData?["drift"] as? CGFloat ?? 0
+      enemy.position.x += drift * CGFloat(delta)
+      let halfWidth = enemy.size.width / 2
+      if enemy.position.x < halfWidth || enemy.position.x > size.width - halfWidth {
+        enemy.userData?["drift"] = -drift
+        enemy.position.x = min(max(enemy.position.x, halfWidth), size.width - halfWidth)
+      }
 
       if enemy.frame.insetBy(dx: 10, dy: 8).intersects(phantom.frame.insetBy(dx: 12, dy: 10)) {
         session.collideWithPumpkin()
-        comboCount = 0
+        comboTracker.breakCombo()
         AudioManager.shared.play("bow_wah", enabled: settings.effectsEnabled)
         provideHitFeedback()
         showCallout("OUCH!", at: phantom.position, color: .red)
@@ -230,14 +246,38 @@ final class GameScene: SKScene {
   }
 
   private func respawn(_ enemy: SKSpriteNode) {
-    enemy.position = spawnPosition(offset: CGFloat.random(in: 0...180))
+    let textures = (1...3).map { AssetLoader.texture("pumpkin\($0)") }
+    configureSpawn(enemy, textures: textures)
+  }
+
+  private func configureSpawn(
+    _ enemy: SKSpriteNode, initialOffset: Double = 0, textures: [SKTexture]
+  ) {
+    let plan = spawnDirector.nextPlan(elapsedTime: survivalElapsed, score: session.score)
+    let baseSize = CGSize(width: 71, height: 61)
+    enemy.size = CGSize(
+      width: baseSize.width * plan.scale,
+      height: baseSize.height * plan.scale
+    )
+    enemy.position = CGPoint(
+      x: CGFloat(plan.horizontalPosition) * size.width,
+      y: size.height + 70 + CGFloat(plan.verticalOffset + initialOffset)
+    )
+    enemy.userData?["speed"] = CGFloat(plan.speed)
+    enemy.userData?["drift"] = CGFloat(plan.horizontalDrift)
+    enemy.removeAction(forKey: "animation")
+    enemy.run(
+      .repeatForever(.animate(with: textures, timePerFrame: plan.animationRate)),
+      withKey: "animation"
+    )
   }
 
   private func moveBonus(by delta: TimeInterval) {
     bonusElapsed += delta
-    if bonus == nil, bonusElapsed >= Double.random(in: 2.5...5.5) {
+    if bonus == nil, bonusElapsed >= nextBonusDelay {
       spawnBonus()
       bonusElapsed = 0
+      nextBonusDelay = spawnDirector.nextBonusDelay()
     }
     guard let bonus else { return }
     bonus.position.y -= 82 * CGFloat(delta)
@@ -255,13 +295,17 @@ final class GameScene: SKScene {
   }
 
   private func spawnBonus() {
-    bonusKind = Int.random(in: 0..<GameRules.sweetScores.count)
+    bonusKind = spawnDirector.nextBonusKind(count: GameRules.sweetScores.count)
     let prefix = bonusKind == 0 ? "" : "\(bonusKind + 1)"
     let textures = (1...3).map { AssetLoader.texture("\(prefix)sweet\($0)") }
     let node = SKSpriteNode(texture: textures[0])
     node.name = "sweet"
     node.size = CGSize(width: 50, height: 50)
-    node.position = spawnPosition()
+    let plan = spawnDirector.nextPlan(elapsedTime: survivalElapsed, score: session.score)
+    node.position = CGPoint(
+      x: CGFloat(plan.horizontalPosition) * size.width,
+      y: size.height + 70 + CGFloat(plan.verticalOffset)
+    )
     node.zPosition = 4
     node.run(.repeatForever(.animate(with: textures, timePerFrame: 0.2)))
     world.addChild(node)
@@ -318,46 +362,86 @@ final class GameScene: SKScene {
 
   private func beginGesture(at point: CGPoint) {
     dragStart = point
+    lastGesturePoint = point
     draggingPhantom = phantom.frame.insetBy(dx: -45, dy: -45).contains(point)
-    didSliceDuringGesture = false
+    gestureHitCount = 0
   }
 
   private func moveGesture(to point: CGPoint) {
-    guard let dragStart else { return }
+    guard let dragStart, let previous = lastGesturePoint else { return }
+    defer { lastGesturePoint = point }
     if draggingPhantom {
       phantom.position = clampedPhantomPosition(point)
       return
     }
+    drawBladeTrail(from: previous, to: point)
     let distance = hypot(point.x - dragStart.x, point.y - dragStart.y)
-    guard distance >= 50, !didSliceDuringGesture else { return }
-    didSliceDuringGesture = destroyPumpkin(near: point, usingSlice: true)
+    guard distance >= 36 else { return }
+    gestureHitCount += destroyPumpkins(from: previous, to: point)
   }
 
   private func endGesture(at point: CGPoint) {
     defer {
       dragStart = nil
+      lastGesturePoint = nil
       draggingPhantom = false
-      didSliceDuringGesture = false
+      gestureHitCount = 0
     }
-    guard !draggingPhantom, !didSliceDuringGesture, let dragStart else { return }
+    guard !draggingPhantom, gestureHitCount == 0, let dragStart else { return }
     let distance = hypot(point.x - dragStart.x, point.y - dragStart.y)
     if distance < 50 { _ = destroyPumpkin(near: point, usingSlice: false) }
+  }
+
+  private func destroyPumpkins(from start: CGPoint, to end: CGPoint) -> Int {
+    let targets = enemies.filter {
+      distance(from: $0.position, toSegmentFrom: start, to: end) <= max($0.size.width, $0.size.height) * 0.62
+    }
+    var hitCount = 0
+    for enemy in targets where destroyPumpkin(enemy, usingSlice: true) {
+      hitCount += 1
+    }
+    return hitCount
+  }
+
+  private func distance(from point: CGPoint, toSegmentFrom start: CGPoint, to end: CGPoint) -> CGFloat {
+    let dx = end.x - start.x
+    let dy = end.y - start.y
+    let lengthSquared = dx * dx + dy * dy
+    guard lengthSquared > 0 else { return hypot(point.x - start.x, point.y - start.y) }
+    let projection = min(1, max(0, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared))
+    return hypot(point.x - (start.x + projection * dx), point.y - (start.y + projection * dy))
+  }
+
+  private func drawBladeTrail(from start: CGPoint, to end: CGPoint) {
+    let path = CGMutablePath()
+    path.move(to: start)
+    path.addLine(to: end)
+    let trail = SKShapeNode(path: path)
+    trail.strokeColor = SKColor(red: 0.55, green: 0.92, blue: 1, alpha: 0.95)
+    trail.glowWidth = 7
+    trail.lineWidth = 3
+    trail.zPosition = 40
+    addChild(trail)
+    trail.run(.sequence([.fadeOut(withDuration: 0.22), .removeFromParent()]))
   }
 
   @discardableResult
   private func destroyPumpkin(near point: CGPoint, usingSlice: Bool) -> Bool {
     let hitArea = CGRect(x: point.x - 55, y: point.y - 55, width: 110, height: 110)
     guard let enemy = enemies.first(where: { hitArea.contains($0.position) }) else { return false }
+    return destroyPumpkin(enemy, usingSlice: usingSlice)
+  }
+
+  @discardableResult
+  private func destroyPumpkin(_ enemy: SKSpriteNode, usingSlice: Bool) -> Bool {
     let succeeded = usingSlice ? session.slicePumpkin() : session.boomPumpkin()
     guard succeeded else { return false }
-    let now = CACurrentMediaTime()
-    comboCount = now - lastPumpkinDestroyedAt <= 1.8 ? comboCount + 1 : 1
-    lastPumpkinDestroyedAt = now
-    let comboBonus = comboCount >= 2 ? session.awardBonus(min(comboCount, 10) * 5) : 0
+    let combo = comboTracker.registerHit(at: CACurrentMediaTime())
+    let comboBonus = session.awardBonus(combo.bonus)
     let action = usingSlice ? "SLICED!" : "BOOM!"
     let callout =
       comboBonus > 0
-      ? action + "  x" + String(comboCount) + "  +" + String(comboBonus)
+      ? action + "  x" + String(combo.count) + "  +" + String(comboBonus)
       : action
     let sound = usingSlice ? "slice" : "explode"
     showCallout(callout, at: enemy.position, color: .orange)
@@ -369,14 +453,15 @@ final class GameScene: SKScene {
   }
 
   private func burst(at point: CGPoint, color: SKColor) {
-    for _ in 0..<14 {
-      let particle = SKShapeNode(circleOfRadius: CGFloat.random(in: 2...6))
+    for index in 0..<14 {
+      let particle = SKShapeNode(circleOfRadius: CGFloat(2 + (index % 5)))
       particle.fillColor = color
       particle.strokeColor = .clear
       particle.position = point
       particle.zPosition = 15
       addChild(particle)
-      let vector = CGVector(dx: CGFloat.random(in: -70...70), dy: CGFloat.random(in: -70...70))
+      let velocity = spawnDirector.particleVelocity()
+      let vector = CGVector(dx: CGFloat(velocity.x), dy: CGFloat(velocity.y))
       particle.run(
         .sequence([
           .group([.move(by: vector, duration: 0.45), .fadeOut(withDuration: 0.45)]),
@@ -419,6 +504,70 @@ final class GameScene: SKScene {
 
   #endif
 
+  #if os(iOS) || os(tvOS)
+    private func movePhantomFromDigitalInput(delta: TimeInterval) {
+      var horizontal = digitalHorizontal
+      var vertical = digitalVertical
+
+      #if os(tvOS)
+        if let gamepad = GCController.current?.extendedGamepad {
+          horizontal += CGFloat(gamepad.leftThumbstick.xAxis.value + gamepad.dpad.xAxis.value)
+          vertical += CGFloat(gamepad.leftThumbstick.yAxis.value + gamepad.dpad.yAxis.value)
+        } else if let gamepad = GCController.current?.microGamepad {
+          horizontal += CGFloat(gamepad.dpad.xAxis.value)
+          vertical += CGFloat(gamepad.dpad.yAxis.value)
+        }
+      #endif
+
+      let magnitude = hypot(horizontal, vertical)
+      guard magnitude > 0.01 else { return }
+      if magnitude > 1 {
+        horizontal /= magnitude
+        vertical /= magnitude
+      }
+      movePhantom(
+        horizontal: horizontal * CGFloat(delta) * 300,
+        vertical: vertical * CGFloat(delta) * 300
+      )
+    }
+
+    private func updateDigitalKey(_ keyCode: UIKeyboardHIDUsage, isPressed: Bool) {
+      let value: CGFloat = isPressed ? 1 : 0
+      switch keyCode {
+      case .keyboardLeftArrow, .keyboardA:
+        digitalHorizontal = -value
+      case .keyboardRightArrow, .keyboardD:
+        digitalHorizontal = value
+      case .keyboardUpArrow, .keyboardW:
+        digitalVertical = value
+      case .keyboardDownArrow, .keyboardS:
+        digitalVertical = -value
+      default:
+        break
+      }
+    }
+
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+      var handled = false
+      for press in presses {
+        guard let key = press.key else { continue }
+        updateDigitalKey(key.keyCode, isPressed: true)
+        handled = true
+      }
+      if !handled { super.pressesBegan(presses, with: event) }
+    }
+
+    override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+      var handled = false
+      for press in presses {
+        guard let key = press.key else { continue }
+        updateDigitalKey(key.keyCode, isPressed: false)
+        handled = true
+      }
+      if !handled { super.pressesEnded(presses, with: event) }
+    }
+  #endif
+
   func startMotionUpdates() {
     #if os(iOS)
       guard motionManager.isAccelerometerAvailable else { return }
@@ -447,7 +596,7 @@ final class GameScene: SKScene {
     #endif
   }
 
-  #if os(iOS)
+  #if os(iOS) || os(tvOS)
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
       guard let touch = touches.first else { return }
       beginGesture(at: touch.location(in: self))

@@ -1,61 +1,116 @@
-# PumkinRaid
+# PumkinRaidApp
 
-A pure-Swift revival of the original PumpkinRaid cocos2d game. The app uses SwiftUI for navigation and settings, SpriteKit for gameplay, Core Motion for tilt control, and AVFoundation for audio. It has no third-party dependencies and contains no C, C++, or Objective-C source.
+[![Swift](https://img.shields.io/badge/Swift-6.2-F05138.svg)](https://swift.org)
+[![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20iPadOS%20%7C%20tvOS%20%7C%20macOS%20%7C%20Web-blue.svg)](#platforms)
+[![CI](https://github.com/sebastienrousseau/PumkinRaidApp/actions/workflows/swift.yml/badge.svg)](https://github.com/sebastienrousseau/PumkinRaidApp/actions)
 
-## Gameplay
+Pumkin Raid is a dependency-free Apple game written in Swift, with a Swift
+WebAssembly browser host. Guide a ghost through an escalating pumpkin raid using
+keyboard, pointer, touch, motion, or an Apple TV controller.
 
-- Drag or tilt the phantom to dodge falling pumpkins and collect sweets.
-- Tap a pumpkin to spend a boom and destroy it.
-- Swipe through a pumpkin to spend a slice and destroy it.
-- Avoided pumpkins award 5 points; destroyed pumpkins award 10 points.
-- Sweets award 500, 750, or 1,000 points.
-- Every 10,000 points grants an extra life.
+This repository is a modern rewrite of the original cocos2d game—not a wrapper.
+The interaction benchmark is the immediacy and clarity of premium arcade games:
+fast restarts, readable HUDs, fair randomness, combos, responsive feedback, and
+short sessions that invite one more run.
 
-### Controls
+## Highlights
 
-| Platform | Move | Boom | Slice |
-| --- | --- | --- | --- |
-| macOS | Arrow keys, WASD, or drag | Click a pumpkin | Drag through a pumpkin |
-| iPhone/iPad | Tilt or drag | Tap a pumpkin | Swipe through a pumpkin |
+- Pure-Swift reusable `GameEngineLib` for scoring, inventory, combos, seeded random
+  spawning, difficulty, and local rankings.
+- SwiftUI navigation, SpriteKit gameplay, AVFoundation audio, Core Motion input,
+  GameController support, and native AppKit keyboard event capture.
+- Anti-repeat seven-lane spawn director with standard, swift, drifting, and heavy
+  pumpkins; every run is unpredictable and reproducible from its seed.
+- Responsive phone, tablet, desktop, TV, and ultrawide layouts with adaptive source
+  artwork and normalized gameplay coordinates.
+- Persistent top-ten local leaderboard with stable ranking and current-run emphasis.
+- Swift WebAssembly Canvas host with keyboard, touch, and mouse controls.
+- Swift 6 concurrency, deterministic unit tests, CI, security policy, and contributor
+  documentation.
 
-The original artwork and sounds are reused from `pumpkinraid-v2`; the game logic was rewritten in Swift rather than wrapping the old cocos2d implementation.
+## Platforms
 
-## Architecture
+| Platform | Move | Attack |
+| --- | --- | --- |
+| macOS | Arrow keys, WASD, or mouse drag | Click to boom; drag through to slice |
+| iPhone/iPad | Finger drag, hardware keyboard, or tilt | Tap to boom; swipe to slice |
+| Apple TV | Siri Remote D-pad or game controller | Remote/controller selection and gestures |
+| HTML5 | Arrow keys, WASD, touch, or mouse | Browser interaction layer |
 
-- `PumkinRaidCore` contains deterministic scoring, lives, inventory, and recharge rules with no UI dependencies.
-- `PumkinRaid` uses SwiftUI for app navigation and settings, SpriteKit for the game loop, AVFoundation for audio, and Core Motion on iOS.
-- Settings and high scores persist through `UserDefaults`.
-- The macOS app supports keyboard, mouse, audio lifecycle cleanup, and quit-on-last-window-close behavior.
-- The iOS project includes a complete app icon, portrait configuration, touch controls, tilt controls, and haptic feedback.
+## Repository layout
 
-## Quality checks
+```text
+PumkinRaidApp/
+├── .github/workflows/          Continuous integration
+├── Documentation/              Architecture, design, and web guides
+├── Platforms/Web/              Swift WebAssembly browser executable
+├── Sources/GameEngineLib/      Reusable platform-neutral game engine
+├── Sources/PumkinRaidApp/      Apple app, renderer, input, audio, resources
+├── Tests/GameEngineLibTests/   Deterministic rules and simulation tests
+├── Package.swift               Canonical Swift package
+└── project.yml                 Optional generated iOS Xcode project
+```
 
-The repository includes unit coverage for scoring, inventories, extra lives, invalid bonuses, recharge bounds, and game-over behavior. GitHub Actions builds and tests every push and pull request on macOS.
+`GameEngineLib` is a public library product and has no dependency on SpriteKit,
+SwiftUI, UIKit, or AppKit. See [Architecture](Documentation/Architecture.md).
 
-## Run
+## Build and run
 
-For iPhone or iPad, generate the dependency-free Xcode project from the checked-in `project.yml`, then open it:
+### macOS
+
+Open `Package.swift` with a current Xcode installation and run the
+`PumkinRaidApp` executable, or:
 
 ```sh
-brew install xcodegen # only when XcodeGen is not already installed
+swift run PumkinRaidApp
+```
+
+### iPhone and iPad
+
+The Swift package can be opened directly in Xcode. An optional generated project is
+also available:
+
+```sh
+brew install xcodegen
 xcodegen generate
-open PumkinRaid.xcodeproj
+open PumkinRaidApp.xcodeproj
 ```
 
-Select your development team in Signing & Capabilities, then run the `PumkinRaid` scheme on an iOS 17+ device or simulator.
+Choose a development team, then run the `PumkinRaidApp` scheme on iOS 17+.
 
-The Swift package also provides a macOS build. Open `Package.swift` in Xcode or run:
+### Apple TV
 
-```sh
-swift run
-```
+Open `Package.swift` in Xcode, select the `PumkinRaidApp` product and an Apple TV
+17+ destination. The shared app source conditionally enables GameController and
+remote input without forking gameplay rules.
 
-Run the cross-platform rules tests with:
+### HTML5
+
+The browser build requires Swift 6.2 or newer and its matching WebAssembly SDK. Follow the
+[web build guide](Documentation/Web.md).
+
+## Testing
 
 ```sh
 swift test
 ```
 
-## Assets
+Tests cover scoring and inventory boundaries, game-over safety, deterministic spawn
+runs, safe position bounds, combo windows, extra lives, and leaderboard ordering.
 
-The bundled artwork and audio originate from the existing `pumpkinraid-v2` project. Confirm distribution rights for those assets before publishing this repository or shipping the app; see [`NOTICE.md`](NOTICE.md).
+## Product status
+
+The game has a professional technical foundation and a complete playable loop. It
+does not claim visual parity with a large commercial title using legacy art alone.
+The highest-impact missing design deliverables are listed in the
+[design system](Documentation/DesignSystem.md), allowing those screens to be produced
+separately without reworking the engine.
+
+## Assets and license
+
+Source code uses the zlib license in [LICENSE.txt](LICENSE.txt). Artwork and audio are
+excluded from that license and originate from the existing `pumpkinraid-v2` project;
+confirm distribution rights before publishing or shipping them. See [NOTICE.md](NOTICE.md).
+
+Contributions are welcome under [CONTRIBUTING.md](CONTRIBUTING.md). Please disclose
+security issues according to [SECURITY.md](SECURITY.md).

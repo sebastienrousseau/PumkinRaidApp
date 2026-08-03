@@ -1,6 +1,6 @@
 import SpriteKit
 
-#if os(iOS)
+#if os(iOS) || os(tvOS)
   import UIKit
 #elseif os(macOS)
   import AppKit
@@ -19,11 +19,14 @@ extension Bundle {
 @MainActor
 enum AssetLoader {
   static func imageURL(_ name: String) -> URL? {
-    Bundle.pumkinRaidResources.url(forResource: name, withExtension: "png", subdirectory: "Images")
-      ?? Bundle.pumkinRaidResources.url(forResource: name, withExtension: "png")
+    let bundle = Bundle.pumkinRaidResources
+    return bundle.url(forResource: name, withExtension: "png", subdirectory: "Images")
+      ?? bundle.url(forResource: name, withExtension: "jpg", subdirectory: "Images/Adaptive")
+      ?? bundle.url(forResource: name, withExtension: "png")
+      ?? bundle.url(forResource: name, withExtension: "jpg")
   }
 
-  #if os(iOS)
+  #if os(iOS) || os(tvOS)
     static func image(_ name: String) -> UIImage? {
       guard let url = imageURL(name) else { return nil }
       return UIImage(contentsOfFile: url.path)
@@ -36,7 +39,7 @@ enum AssetLoader {
   #endif
 
   static func texture(_ name: String) -> SKTexture {
-    #if os(iOS)
+    #if os(iOS) || os(tvOS)
       guard let image = image(name) else { return SKTexture() }
       return SKTexture(image: image)
     #elseif os(macOS)

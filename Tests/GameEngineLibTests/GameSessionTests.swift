@@ -1,8 +1,47 @@
+import Foundation
 import XCTest
 
-@testable import PumkinRaidCore
+@testable import GameEngineLib
 
 final class GameSessionTests: XCTestCase {
+  func testSeededSpawnRunsAreExactlyReproducible() {
+    var first = SpawnDirector(seed: 0xCAFE_BABE)
+    var second = SpawnDirector(seed: 0xCAFE_BABE)
+    let firstRun = (0..<40).map { first.nextPlan(elapsedTime: Double($0), score: $0 * 120) }
+    let secondRun = (0..<40).map { second.nextPlan(elapsedTime: Double($0), score: $0 * 120) }
+    XCTAssertEqual(firstRun, secondRun)
+  }
+
+  func testSpawnDirectorStaysInsideSafeHorizontalBounds() {
+    var director = SpawnDirector(seed: 42)
+    for index in 0..<1_000 {
+      let plan = director.nextPlan(elapsedTime: Double(index), score: index * 10)
+      XCTAssertGreaterThanOrEqual(plan.horizontalPosition, 0.05)
+      XCTAssertLessThanOrEqual(plan.horizontalPosition, 0.95)
+      XCTAssertGreaterThan(plan.speed, 0)
+      XCTAssertGreaterThan(plan.scale, 0)
+    }
+  }
+
+  func testComboWindowAndBonusAreDeterministic() {
+    var combo = ComboTracker(window: 1.5)
+    XCTAssertEqual(combo.registerHit(at: 1), ComboResult(count: 1, bonus: 0))
+    XCTAssertEqual(combo.registerHit(at: 2), ComboResult(count: 2, bonus: 10))
+    XCTAssertEqual(combo.registerHit(at: 2.4), ComboResult(count: 3, bonus: 15))
+    XCTAssertEqual(combo.registerHit(at: 5), ComboResult(count: 1, bonus: 0))
+  }
+
+  func testLeaderboardRanksScoresAndCapsCapacity() {
+    let now = Date(timeIntervalSince1970: 1_000)
+    var board = Leaderboard(capacity: 3)
+    board.submit(LeaderboardEntry(playerName: "A", score: 200, achievedAt: now))
+    board.submit(LeaderboardEntry(playerName: "B", score: 900, achievedAt: now))
+    board.submit(LeaderboardEntry(playerName: "C", score: 500, achievedAt: now))
+    XCTAssertNil(board.submit(LeaderboardEntry(playerName: "D", score: 10, achievedAt: now)))
+    XCTAssertEqual(board.entries.map(\.score), [900, 500, 200])
+    XCTAssertEqual(board.bestScore, 900)
+  }
+
   func testOriginalStartingInventoryIsPreserved() {
     let session = GameSession()
     XCTAssertEqual(session.lives, 10)
