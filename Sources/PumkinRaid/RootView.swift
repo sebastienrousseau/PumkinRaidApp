@@ -213,31 +213,42 @@ private struct GameOverView: View {
   let highScore: Int
 
   var body: some View {
-    GeometryReader { _ in
+    GeometryReader { proxy in
+      let cardWidth = min(370, max(280, proxy.size.width - 40))
+      let cardHeight: CGFloat = 169
+      let centerY = proxy.size.height / 2
       ZStack {
         GameArtwork(name: "gameover")
-        VStack(spacing: 16) {
-          Text("GAME OVER")
-            .font(.system(size: 42, weight: .black, design: .rounded))
-            .foregroundStyle(.orange)
-            .shadow(color: .black.opacity(0.75), radius: 4, y: 2)
-
-          VStack(spacing: 0) {
-            scoreRow("High Score", highScore, icon: "trophy.fill")
-              .frame(height: 58)
-            Divider().overlay(.white.opacity(0.22))
-            scoreRow("This Run", score, icon: "flag.checkered")
-              .frame(height: 58)
-          }
-          .padding(.horizontal, 26)
-          .padding(.vertical, 26)
-          .frame(maxWidth: 350)
-          .background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 20))
-          .overlay(
-            RoundedRectangle(cornerRadius: 20)
-              .stroke(.orange.opacity(0.85), lineWidth: 1.5)
+        Text("GAME OVER")
+          .font(
+            .system(
+              size: min(42, max(32, proxy.size.width * 0.1)),
+              weight: .black,
+              design: .rounded
+            )
           )
+          .foregroundStyle(.orange)
+          .shadow(color: .black.opacity(0.75), radius: 4, y: 2)
+          .position(x: proxy.size.width / 2, y: centerY - cardHeight / 2 - 48)
 
+        VStack(spacing: 0) {
+          scoreRow("High Score", highScore, icon: "trophy.fill")
+            .frame(height: 58)
+          Divider().overlay(.white.opacity(0.22))
+          scoreRow("This Run", score, icon: "flag.checkered")
+            .frame(height: 58)
+        }
+        .padding(.horizontal, 26)
+        .padding(.vertical, 26)
+        .frame(width: cardWidth, height: cardHeight)
+        .background(.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 20))
+        .overlay(
+          RoundedRectangle(cornerRadius: 20)
+            .stroke(.orange.opacity(0.9), lineWidth: 1.5)
+        )
+        .position(x: proxy.size.width / 2, y: centerY)
+
+        VStack(spacing: 14) {
           Button {
             model.beginGame()
           } label: {
@@ -259,10 +270,11 @@ private struct GameOverView: View {
             .buttonStyle(.bordered)
           }
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 72)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         .foregroundStyle(.white)
+        .position(
+          x: proxy.size.width / 2,
+          y: min(proxy.size.height - 76, centerY + cardHeight / 2 + 102)
+        )
       }
     }
     .ignoresSafeArea()

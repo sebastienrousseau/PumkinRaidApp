@@ -1,6 +1,5 @@
 import Combine
 import Foundation
-import GameController
 import PumkinRaidCore
 
 @MainActor
@@ -41,6 +40,9 @@ final class AppModel: ObservableObject {
   }
 
   func finishGame(score: Int) {
+    #if os(macOS)
+      KeyboardState.shared.clear()
+    #endif
     activeGameScene = nil
     let highScore = max(score, defaults.integer(forKey: Self.highScoreKey))
     defaults.set(highScore, forKey: Self.highScoreKey)
@@ -48,9 +50,6 @@ final class AppModel: ObservableObject {
   }
 
   func movePhantom(horizontal: CGFloat, vertical: CGFloat) {
-    #if os(macOS)
-      if GCKeyboard.coalesced?.keyboardInput?.isAnyKeyPressed == true { return }
-    #endif
     activeGameScene?.movePhantom(horizontal: horizontal, vertical: vertical)
   }
 

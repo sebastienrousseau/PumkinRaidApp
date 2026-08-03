@@ -1,6 +1,5 @@
 import CoreMotion
 import Foundation
-import GameController
 import PumkinRaidCore
 import SpriteKit
 
@@ -401,11 +400,11 @@ final class GameScene: SKScene {
 
   #if os(macOS)
     private func movePhantomFromHardwareKeyboard(delta: TimeInterval) {
-      guard let keyboard = GCKeyboard.coalesced?.keyboardInput else { return }
-      let left = isPressed(keyboard, .leftArrow) || isPressed(keyboard, .keyA)
-      let right = isPressed(keyboard, .rightArrow) || isPressed(keyboard, .keyD)
-      let down = isPressed(keyboard, .downArrow) || isPressed(keyboard, .keyS)
-      let up = isPressed(keyboard, .upArrow) || isPressed(keyboard, .keyW)
+      let keyboard = KeyboardState.shared
+      let left = keyboard.isPressed(123) || keyboard.isPressed(0)
+      let right = keyboard.isPressed(124) || keyboard.isPressed(2)
+      let down = keyboard.isPressed(125) || keyboard.isPressed(1)
+      let up = keyboard.isPressed(126) || keyboard.isPressed(13)
 
       var horizontal = CGFloat((right ? 1 : 0) - (left ? 1 : 0))
       var vertical = CGFloat((up ? 1 : 0) - (down ? 1 : 0))
@@ -418,9 +417,6 @@ final class GameScene: SKScene {
       movePhantom(horizontal: horizontal * distance, vertical: vertical * distance)
     }
 
-    private func isPressed(_ keyboard: GCKeyboardInput, _ code: GCKeyCode) -> Bool {
-      keyboard.button(forKeyCode: code)?.isPressed == true
-    }
   #endif
 
   func startMotionUpdates() {
