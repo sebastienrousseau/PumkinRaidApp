@@ -43,7 +43,27 @@
 
     override func mouseDown(with event: NSEvent) {
       window?.makeFirstResponder(self)
-      super.mouseDown(with: event)
+      guard let scene = scene as? GameScene else {
+        super.mouseDown(with: event)
+        return
+      }
+      scene.handlePointerDown(at: convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+      guard let scene = scene as? GameScene else {
+        super.mouseDragged(with: event)
+        return
+      }
+      scene.handlePointerDragged(to: convert(event.locationInWindow, from: nil))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+      guard let scene = scene as? GameScene else {
+        super.mouseUp(with: event)
+        return
+      }
+      scene.handlePointerUp(at: convert(event.locationInWindow, from: nil))
     }
 
   }

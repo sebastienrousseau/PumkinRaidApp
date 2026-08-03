@@ -46,6 +46,7 @@ final class GameScene: SKScene {
   private var dragStart: CGPoint?
   private var lastGesturePoint: CGPoint?
   private var draggingPhantom = false
+  private var phantomDragOffset = CGPoint.zero
   private var gestureHitCount = 0
   private var gameEnded = false
   private var needsInitialPhantomPlacement = true
@@ -417,6 +418,9 @@ final class GameScene: SKScene {
     dragStart = point
     lastGesturePoint = point
     draggingPhantom = phantom.frame.insetBy(dx: -45, dy: -45).contains(point)
+    phantomDragOffset = draggingPhantom
+      ? CGPoint(x: phantom.position.x - point.x, y: phantom.position.y - point.y)
+      : .zero
     gestureHitCount = 0
   }
 
@@ -424,7 +428,9 @@ final class GameScene: SKScene {
     guard let dragStart, let previous = lastGesturePoint else { return }
     defer { lastGesturePoint = point }
     if draggingPhantom {
-      phantom.position = clampedPhantomPosition(point)
+      phantom.position = clampedPhantomPosition(
+        CGPoint(x: point.x + phantomDragOffset.x, y: point.y + phantomDragOffset.y)
+      )
       return
     }
     drawBladeTrail(from: previous, to: point)
@@ -438,6 +444,7 @@ final class GameScene: SKScene {
       dragStart = nil
       lastGesturePoint = nil
       draggingPhantom = false
+      phantomDragOffset = .zero
       gestureHitCount = 0
     }
     guard !draggingPhantom, gestureHitCount == 0, let dragStart else { return }
@@ -668,14 +675,16 @@ final class GameScene: SKScene {
       endGesture(at: touch.location(in: self))
     }
   #elseif os(macOS)
-    private func sceneLocation(for event: NSEvent) -> CGPoint {
-      guard let view else { return .zero }
-      let viewPoint = view.convert(event.locationInWindow, from: nil)
-      return convertPoint(fromView: viewPoint)
+    func handlePointerDown(at viewPoint: CGPoint) {
+      beginGesture(at: convertPoint(fromView: viewPoint))
     }
 
-    override func mouseDown(with event: NSEvent) { beginGesture(at: sceneLocation(for: event)) }
-    override func mouseDragged(with event: NSEvent) { moveGesture(to: sceneLocation(for: event)) }
-    override func mouseUp(with event: NSEvent) { endGesture(at: sceneLocation(for: event)) }
+    func handlePointerDragged(to viewPoint: CGPoint) {
+      moveGesture(to: convertPoint(fromView: viewPoint))
+    }
+
+    func handlePointerUp(at viewPoint: CGPoint) {
+      endGesture(at: convertPoint(fromView: viewPoint))
+    }
   #endif
 }
