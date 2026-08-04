@@ -34,6 +34,49 @@ enum RaidTheme {
   static let ink = Color(red: 0.025, green: 0.035, blue: 0.10)
 }
 
+enum RaidTypography {
+  static let screenTitle = Font.system(.largeTitle, design: .rounded, weight: .black)
+  static let sectionTitle = Font.system(.headline, design: .rounded, weight: .black)
+  static let cardTitle = Font.system(.title3, design: .rounded, weight: .black)
+  static let body = Font.system(.body, design: .rounded, weight: .medium)
+  static let support = Font.system(.subheadline, design: .rounded, weight: .semibold)
+  static let caption = Font.system(.caption, design: .rounded, weight: .semibold)
+  static let action = Font.system(.headline, design: .rounded, weight: .black)
+}
+
+enum RaidMetrics {
+  static let compactSpacing: CGFloat = 8
+  static let standardSpacing: CGFloat = 16
+  static let sectionSpacing: CGFloat = 24
+  static let contentPadding: CGFloat = 24
+  static let cardRadius: CGFloat = 20
+  static let panelRadius: CGFloat = 24
+  static let controlHeight: CGFloat = 48
+}
+
+struct StartLayoutMetrics: Equatable {
+  let size: CGSize
+  let safeTop: CGFloat
+
+  var isLandscape: Bool { size.width / max(1, size.height) > 1.15 }
+  var isCompact: Bool { min(size.width, size.height) < 600 || isLandscape }
+  var playSize: CGFloat { min(124, max(88, min(size.width, size.height) * 0.25)) }
+  var contentTop: CGFloat { max(16, safeTop + 12) }
+  var contentRegionHeight: CGFloat {
+    if isLandscape { return min(size.height - contentTop * 2, 390) }
+    return min(size.height * 0.47 - contentTop, isCompact ? 300 : 390)
+  }
+  var contentCenter: CGPoint {
+    CGPoint(
+      x: isLandscape ? size.width * 0.28 : size.width / 2,
+      y: contentTop + max(1, contentRegionHeight) / 2
+    )
+  }
+  var contentWidth: CGFloat {
+    isLandscape ? min(440, size.width * 0.46) : min(520, size.width - 32)
+  }
+}
+
 struct RaidTitle: View {
   var compact = false
 
@@ -55,6 +98,62 @@ struct RaidTitle: View {
     .shadow(color: RaidTheme.orange.opacity(0.42), radius: 18)
     .accessibilityElement(children: .ignore)
     .accessibilityLabel("Pumkin Raid")
+  }
+}
+
+struct RaidScreenHeading: View {
+  let title: String
+  var subtitle: String?
+
+  var body: some View {
+    VStack(spacing: RaidMetrics.compactSpacing) {
+      Text(title)
+        .font(RaidTypography.screenTitle)
+        .foregroundStyle(RaidTheme.orange)
+        .multilineTextAlignment(.center)
+      if let subtitle {
+        Text(subtitle)
+          .font(RaidTypography.support)
+          .foregroundStyle(.white.opacity(0.78))
+          .multilineTextAlignment(.center)
+      }
+    }
+    .accessibilityElement(children: .combine)
+  }
+}
+
+struct RaidPrimaryButtonStyle: ButtonStyle {
+  var tint = RaidTheme.orange
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .font(RaidTypography.action)
+      .foregroundStyle(.white)
+      .frame(minHeight: RaidMetrics.controlHeight)
+      .padding(.horizontal, 20)
+      .background(
+        LinearGradient(
+          colors: [tint.opacity(configuration.isPressed ? 0.72 : 1), tint.opacity(0.7)],
+          startPoint: .top,
+          endPoint: .bottom
+        ),
+        in: Capsule()
+      )
+      .overlay(Capsule().stroke(.white.opacity(0.3), lineWidth: 1))
+      .scaleEffect(configuration.isPressed ? 0.97 : 1)
+      .shadow(color: tint.opacity(0.32), radius: 10, y: 5)
+  }
+}
+
+struct RaidSecondaryButtonStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .font(RaidTypography.support)
+      .foregroundStyle(.white)
+      .frame(minHeight: RaidMetrics.controlHeight)
+      .padding(.horizontal, 18)
+      .background(.black.opacity(configuration.isPressed ? 0.82 : 0.66), in: Capsule())
+      .overlay(Capsule().stroke(RaidTheme.orange.opacity(0.72), lineWidth: 1))
   }
 }
 
@@ -107,11 +206,15 @@ struct RaidGlassPanel<Content: View>: View {
 
   var body: some View {
     content
-      .padding(22)
-      .background(.black.opacity(0.76), in: RoundedRectangle(cornerRadius: 24))
-      .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24))
+      .padding(RaidMetrics.sectionSpacing)
+      .background(
+        .black.opacity(0.76), in: RoundedRectangle(cornerRadius: RaidMetrics.panelRadius)
+      )
+      .background(
+        .ultraThinMaterial, in: RoundedRectangle(cornerRadius: RaidMetrics.panelRadius)
+      )
       .overlay(
-        RoundedRectangle(cornerRadius: 24)
+        RoundedRectangle(cornerRadius: RaidMetrics.panelRadius)
           .stroke(
             LinearGradient(
               colors: [

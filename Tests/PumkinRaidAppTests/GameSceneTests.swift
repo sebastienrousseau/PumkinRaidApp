@@ -47,6 +47,34 @@ final class GameSceneTests: XCTestCase {
     }
   }
 
+  func testStartContentNeverEntersPortraitCharacterZone() {
+    let sizes = [
+      CGSize(width: 320, height: 568),
+      CGSize(width: 390, height: 844),
+      CGSize(width: 768, height: 1_024),
+      CGSize(width: 1_280, height: 720),
+      CGSize(width: 1_920, height: 1_080),
+      CGSize(width: 3_440, height: 1_440),
+    ]
+
+    for size in sizes {
+      let layout = StartLayoutMetrics(size: size, safeTop: 24)
+      XCTAssertGreaterThanOrEqual(layout.playSize, 88)
+      XCTAssertLessThanOrEqual(layout.playSize, 124)
+      XCTAssertGreaterThan(layout.contentRegionHeight, 0)
+      if layout.isLandscape {
+        XCTAssertLessThan(layout.contentCenter.x, size.width / 2)
+        XCTAssertLessThanOrEqual(layout.contentWidth, size.width * 0.46)
+      } else {
+        XCTAssertLessThanOrEqual(
+          layout.contentTop + layout.contentRegionHeight,
+          size.height * 0.47,
+          "Launch content enters character artwork at \(size)"
+        )
+      }
+    }
+  }
+
   func testProgrammaticMovementRoutesThroughSimulation() {
     let scene = GameScene(settings: silentSettings, seed: 8)
     let before = scene.authoritativeState.ghost.position

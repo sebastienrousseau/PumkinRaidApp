@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Unify typography, spacing, radii, and primary/secondary controls; reserve a
+  collision-free portrait launch zone, add a dedicated landscape composition,
+  and wrap mode actions responsively on compact screens.
 - Replace the legacy text-baked splash with an owned text-free source-art export,
   responsive code-native branding, a centered moon action, and a compact Guide control.
 - Add deterministic UTC daily streaks, best-score tracking, duplicate-safe rewards,

@@ -35,18 +35,16 @@ struct TutorialView: View {
         .overlay(.black.opacity(0.48))
 
       VStack(spacing: 16) {
-        Text("GHOST SCHOOL")
-          .font(.system(size: 32, weight: .black, design: .rounded))
-          .foregroundStyle(RaidTheme.orange)
+        RaidScreenHeading(title: "GHOST SCHOOL")
 
         lessonProgress
 
         RaidGlassPanel {
           VStack(spacing: 14) {
             Text(lesson.title)
-              .font(.system(size: 24, weight: .black, design: .rounded))
+              .font(RaidTypography.cardTitle)
             Text(lesson.detail)
-              .font(.subheadline.weight(.semibold))
+              .font(RaidTypography.support)
               .foregroundStyle(.white.opacity(0.78))
               .multilineTextAlignment(.center)
 
@@ -55,8 +53,7 @@ struct TutorialView: View {
             #if os(tvOS)
               if lesson == .move {
                 Button("MOVE TO TARGET") { advance() }
-                  .buttonStyle(.borderedProminent)
-                  .tint(RaidTheme.moon)
+                  .buttonStyle(RaidPrimaryButtonStyle(tint: RaidTheme.moon))
               }
             #endif
             if lesson == .dash {
@@ -65,8 +62,7 @@ struct TutorialView: View {
               shriekButton
             } else if lesson == .ready {
               Button("CHOOSE YOUR RAID") { model.completeTutorial() }
-                .buttonStyle(.borderedProminent)
-                .tint(RaidTheme.orange)
+                .buttonStyle(RaidPrimaryButtonStyle())
             }
           }
           .foregroundStyle(.white)
@@ -74,8 +70,7 @@ struct TutorialView: View {
         .frame(maxWidth: 560)
 
         Button("Skip tutorial") { model.completeTutorial() }
-          .buttonStyle(.plain)
-          .foregroundStyle(.white.opacity(0.7))
+          .buttonStyle(RaidSecondaryButtonStyle())
       }
       .padding(22)
     }
@@ -136,12 +131,10 @@ struct TutorialView: View {
   private var dashButton: some View {
     #if os(tvOS)
       Button("DASH") { completeActionLesson() }
-        .buttonStyle(.borderedProminent)
-        .tint(RaidTheme.orange)
+        .buttonStyle(RaidPrimaryButtonStyle())
     #else
       Button("DASH") { completeActionLesson() }
-        .buttonStyle(.borderedProminent)
-        .tint(RaidTheme.orange)
+        .buttonStyle(RaidPrimaryButtonStyle())
         .keyboardShortcut(.space, modifiers: [])
     #endif
   }
@@ -150,12 +143,10 @@ struct TutorialView: View {
   private var shriekButton: some View {
     #if os(tvOS)
       Button("SHRIEK") { completeActionLesson() }
-        .buttonStyle(.borderedProminent)
-        .tint(.purple)
+        .buttonStyle(RaidPrimaryButtonStyle(tint: .purple))
     #else
       Button("SHRIEK") { completeActionLesson() }
-        .buttonStyle(.borderedProminent)
-        .tint(.purple)
+        .buttonStyle(RaidPrimaryButtonStyle(tint: .purple))
         .keyboardShortcut(.return, modifiers: [])
     #endif
   }

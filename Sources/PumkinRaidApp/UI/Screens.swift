@@ -9,61 +9,39 @@ struct StartView: View {
 
   var body: some View {
     GeometryReader { proxy in
-      let shortSide = min(proxy.size.width, proxy.size.height)
-      let playSize = min(172, max(112, shortSide * 0.29))
-      let landscape = proxy.size.width / max(1, proxy.size.height) > 1.15
+      let layout = StartLayoutMetrics(size: proxy.size, safeTop: proxy.safeAreaInsets.top)
       ZStack {
-        BundledImage(name: "splash-backdrop-tablet")
-          .scaledToFill()
-          .frame(width: proxy.size.width, height: proxy.size.height)
-          .clipped()
-          .overlay(
-            LinearGradient(
-              colors: [.black.opacity(0.16), .clear, .black.opacity(0.22)],
-              startPoint: .top,
-              endPoint: .bottom
-            )
-          )
+        startBackdrop(landscape: layout.isLandscape, size: proxy.size)
 
-        VStack(spacing: landscape ? 12 : 22) {
-          RaidTitle(compact: landscape)
+        VStack(spacing: layout.isCompact ? 10 : 16) {
+          RaidTitle(compact: layout.isCompact)
 
-          MoonPlayButton(size: playSize, pulsing: playPulse) {
+          MoonPlayButton(size: layout.playSize, pulsing: playPulse) {
             model.beginPlayFlow()
           }
 
-          VStack(spacing: 5) {
-            Text("ENTER THE RAID")
-              .font(.system(.headline, design: .rounded, weight: .black))
-              .tracking(2.2)
-            Text("Tap, click, or press Return")
-              .font(.subheadline.weight(.semibold))
-              .foregroundStyle(.white.opacity(0.78))
+          Button {
+            model.beginPlayFlow()
+          } label: {
+            VStack(spacing: 2) {
+              Text("ENTER THE RAID")
+              Text("Tap, click, or press Return")
+                .font(RaidTypography.caption)
+                .foregroundStyle(.white.opacity(0.82))
+            }
           }
-          .foregroundStyle(.white)
-          .padding(.horizontal, 20)
-          .padding(.vertical, 11)
-          .background(.black.opacity(0.64), in: Capsule())
-          .overlay(Capsule().stroke(RaidTheme.orange.opacity(0.75), lineWidth: 1))
-          .accessibilityHidden(true)
+          .buttonStyle(RaidSecondaryButtonStyle())
+          .accessibilityHint("Opens game mode selection")
         }
-        .position(
-          x: landscape ? proxy.size.width * 0.3 : proxy.size.width / 2,
-          y: landscape ? proxy.size.height * 0.44 : proxy.size.height * 0.31
-        )
+        .frame(width: layout.contentWidth, height: layout.contentRegionHeight, alignment: .top)
+        .position(layout.contentCenter)
 
         Button {
           model.showSettings()
         } label: {
           Label("Guide", systemImage: "questionmark.circle.fill")
-            .font(.system(.subheadline, design: .rounded, weight: .bold))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 14)
-            .frame(minHeight: 44)
-            .background(.black.opacity(0.68), in: Capsule())
-            .overlay(Capsule().stroke(RaidTheme.orange.opacity(0.88), lineWidth: 1.2))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(RaidSecondaryButtonStyle())
         .accessibilityLabel("Settings and game guide")
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         .padding(.top, max(14, proxy.safeAreaInsets.top))
@@ -83,6 +61,42 @@ struct StartView: View {
       }
     }
   }
+
+  @ViewBuilder
+  private func startBackdrop(landscape: Bool, size: CGSize) -> some View {
+    if landscape {
+      BundledImage(name: "background-wide")
+        .scaledToFill()
+        .frame(width: size.width, height: size.height)
+        .clipped()
+        .overlay(.black.opacity(0.18))
+      ZStack(alignment: .bottom) {
+        BundledImage(name: "pumpkin1")
+          .scaledToFit()
+          .frame(width: min(180, size.height * 0.25))
+          .offset(x: -min(90, size.width * 0.045), y: -12)
+        BundledImage(name: "phantom")
+          .scaledToFit()
+          .frame(width: min(230, size.height * 0.34))
+          .offset(x: min(80, size.width * 0.04), y: -min(95, size.height * 0.1))
+      }
+      .frame(width: size.width * 0.46, height: size.height * 0.72)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+      .padding(.trailing, max(20, size.width * 0.04))
+    } else {
+      BundledImage(name: "splash-backdrop-tablet")
+        .scaledToFill()
+        .frame(width: size.width, height: size.height)
+        .clipped()
+        .overlay(
+          LinearGradient(
+            colors: [.black.opacity(0.16), .clear, .black.opacity(0.22)],
+            startPoint: .top,
+            endPoint: .bottom
+          )
+        )
+    }
+  }
 }
 
 struct SettingsView: View {
@@ -93,16 +107,14 @@ struct SettingsView: View {
       GameArtwork(name: "setting_background")
       ScrollView {
         VStack(spacing: 18) {
-          Text("SETTINGS")
-            .font(.system(size: 38, weight: .black, design: .rounded))
-            .foregroundStyle(.orange)
+          RaidScreenHeading(title: "SETTINGS")
           Toggle("Background music", isOn: $model.settings.musicEnabled)
           Toggle("Special effects", isOn: $model.settings.effectsEnabled)
           Toggle("Vibration", isOn: $model.settings.vibrationEnabled)
           Toggle("Visual sound captions", isOn: $model.settings.captionsEnabled)
           Divider()
           Text("ACCESSIBILITY & CONTROLS")
-            .font(.headline.weight(.black))
+            .font(RaidTypography.sectionTitle)
             .foregroundStyle(.orange)
           Toggle("Reduce motion", isOn: $model.settings.reducedMotionEnabled)
           Toggle("Screen shake", isOn: $model.settings.screenShakeEnabled)
@@ -124,14 +136,14 @@ struct SettingsView: View {
                     model.settings.inputSensitivity - 0.1
                   )
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(RaidSecondaryButtonStyle())
                 Button("More") {
                   model.settings.inputSensitivity = min(
                     1.5,
                     model.settings.inputSensitivity + 0.1
                   )
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(RaidSecondaryButtonStyle())
               }
             #else
               Slider(value: $model.settings.inputSensitivity, in: 0.5...1.5, step: 0.1)
@@ -149,11 +161,11 @@ struct SettingsView: View {
           }
           .font(.callout.weight(.semibold))
           Button("Choose a mode") { model.showModeSelection() }
-            .buttonStyle(.borderedProminent)
-            .tint(.orange)
+            .buttonStyle(RaidPrimaryButtonStyle())
           Button("Back") { model.showStart() }
-            .buttonStyle(.bordered)
+            .buttonStyle(RaidSecondaryButtonStyle())
         }
+        .font(RaidTypography.body)
         .padding(28)
         .foregroundStyle(.white)
       }
@@ -172,6 +184,7 @@ struct ModeSelectionView: View {
   @State private var challengeError = false
 
   private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
+  private let actionColumns = [GridItem(.adaptive(minimum: 140), spacing: 12)]
 
   var body: some View {
     ZStack {
@@ -179,45 +192,43 @@ struct ModeSelectionView: View {
         .overlay(.black.opacity(0.38))
       ScrollView {
         VStack(spacing: 22) {
-          VStack(spacing: 6) {
-            Text("CHOOSE YOUR RAID")
-              .font(.system(size: 34, weight: .black, design: .rounded))
-              .foregroundStyle(.orange)
-            Text("Every mode uses the same responsive controls.")
-              .font(.subheadline.weight(.semibold))
-              .foregroundStyle(.white.opacity(0.78))
-          }
-          HStack(spacing: 12) {
+          RaidScreenHeading(
+            title: "CHOOSE YOUR RAID",
+            subtitle: "Every mode uses the same responsive controls."
+          )
+          LazyVGrid(columns: actionColumns, spacing: 12) {
             Button {
               model.showPlayerHub(.profile)
             } label: {
               Label("Level \(model.progress.level)", systemImage: "person.crop.circle.fill")
+                .frame(maxWidth: .infinity)
             }
             Button {
               model.showPlayerHub(.missions)
             } label: {
               Label("Missions", systemImage: "checklist")
+                .frame(maxWidth: .infinity)
             }
             Button {
               model.showPlayerHub(.collection)
             } label: {
               Label("\(model.progress.ectoplasm)", systemImage: "sparkles")
+                .frame(maxWidth: .infinity)
             }
             Button {
               GameCenterService.shared.showDashboard()
             } label: {
               Label("Game Center", systemImage: "person.2.fill")
+                .frame(maxWidth: .infinity)
             }
           }
-          .buttonStyle(.bordered)
-          .tint(.orange)
+          .buttonStyle(RaidSecondaryButtonStyle())
           Button {
             showsChallengeEntry = true
           } label: {
             Label("Friend challenge", systemImage: "person.2.wave.2.fill")
           }
-          .buttonStyle(.borderedProminent)
-          .tint(.purple)
+          .buttonStyle(RaidPrimaryButtonStyle(tint: .purple))
           LazyVGrid(columns: columns, spacing: 16) {
             modeCard(
               .classicRaid,
@@ -252,9 +263,9 @@ struct ModeSelectionView: View {
             )
           }
           Button("Back") { model.showStart() }
-            .buttonStyle(.bordered)
-            .foregroundStyle(.white)
+            .buttonStyle(RaidSecondaryButtonStyle())
         }
+        .font(RaidTypography.body)
         .padding(28)
         .frame(maxWidth: 820)
         .frame(maxWidth: .infinity)
@@ -265,7 +276,7 @@ struct ModeSelectionView: View {
       RaidGlassPanel {
         VStack(spacing: 16) {
           Text("FRIEND CHALLENGE")
-            .font(.title2.weight(.black))
+            .font(RaidTypography.cardTitle)
             .foregroundStyle(RaidTheme.orange)
           Text("Paste a challenge code to replay the same seed and beat its target score.")
             .multilineTextAlignment(.center)
@@ -290,10 +301,9 @@ struct ModeSelectionView: View {
             showsChallengeEntry = false
             model.beginGame(mode: challenge.mode, seed: challenge.seed)
           }
-          .buttonStyle(.borderedProminent)
-          .tint(RaidTheme.orange)
+          .buttonStyle(RaidPrimaryButtonStyle())
           Button("Cancel") { showsChallengeEntry = false }
-            .buttonStyle(.plain)
+            .buttonStyle(RaidSecondaryButtonStyle())
         }
         .padding(10)
       }
@@ -317,9 +327,9 @@ struct ModeSelectionView: View {
           .font(.system(size: 28, weight: .bold))
           .foregroundStyle(.orange)
         Text(title)
-          .font(.title3.weight(.black))
+          .font(RaidTypography.cardTitle)
         Text(detail)
-          .font(.subheadline)
+          .font(RaidTypography.support)
           .foregroundStyle(.white.opacity(0.76))
           .multilineTextAlignment(.leading)
         Spacer(minLength: 0)
@@ -329,9 +339,12 @@ struct ModeSelectionView: View {
       }
       .frame(maxWidth: .infinity, minHeight: 150, alignment: .leading)
       .padding(20)
-      .background(.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 20))
+      .background(
+        .black.opacity(0.78), in: RoundedRectangle(cornerRadius: RaidMetrics.cardRadius)
+      )
       .overlay(
-        RoundedRectangle(cornerRadius: 20).stroke(.orange.opacity(0.72), lineWidth: 1.5)
+        RoundedRectangle(cornerRadius: RaidMetrics.cardRadius)
+          .stroke(RaidTheme.orange.opacity(0.72), lineWidth: 1.5)
       )
     }
     .buttonStyle(.plain)
@@ -349,9 +362,7 @@ struct PlayerHubView: View {
         .overlay(.black.opacity(0.5))
       ScrollView {
         VStack(spacing: 20) {
-          Text("GHOST LODGE")
-            .font(.system(size: 34, weight: .black, design: .rounded))
-            .foregroundStyle(.orange)
+          RaidScreenHeading(title: "GHOST LODGE")
           Picker("Lodge section", selection: sectionBinding) {
             ForEach(AppModel.HubSection.allCases, id: \.self) { item in
               Text(item.rawValue.capitalized).tag(item)
@@ -366,9 +377,9 @@ struct PlayerHubView: View {
           }
 
           Button("Back to modes") { model.showModeSelection() }
-            .buttonStyle(.borderedProminent)
-            .tint(.orange)
+            .buttonStyle(RaidPrimaryButtonStyle())
         }
+        .font(RaidTypography.body)
         .padding(28)
         .frame(maxWidth: 720)
         .frame(maxWidth: .infinity)
@@ -590,26 +601,23 @@ struct GameView: View {
             .font(.system(size: 38, weight: .bold))
             .foregroundStyle(.orange)
           Text("RAID PAUSED")
-            .font(.system(size: 30, weight: .black, design: .rounded))
+            .font(RaidTypography.screenTitle)
           Text("Your run is safe. Continue when you are ready.")
             .font(.subheadline)
             .foregroundStyle(.white.opacity(0.75))
             .multilineTextAlignment(.center)
           #if os(tvOS)
             Button("Resume") { scene.requestResume() }
-              .buttonStyle(.borderedProminent)
-              .tint(.orange)
+              .buttonStyle(RaidPrimaryButtonStyle())
           #else
             Button("Resume") { scene.requestResume() }
-              .buttonStyle(.borderedProminent)
-              .tint(.orange)
+              .buttonStyle(RaidPrimaryButtonStyle())
               .keyboardShortcut(.defaultAction)
           #endif
           Button("End run") { scene.abandonRun() }
-            .buttonStyle(.bordered)
+            .buttonStyle(RaidSecondaryButtonStyle())
           Button("Choose another mode") { model.showModeSelection() }
-            .buttonStyle(.plain)
-            .foregroundStyle(.orange)
+            .buttonStyle(RaidSecondaryButtonStyle())
         }
         .padding(30)
         .frame(maxWidth: 380)
@@ -674,13 +682,7 @@ struct GameOverView: View {
       ZStack {
         GameArtwork(name: "gameover")
         Text("GAME OVER")
-          .font(
-            .system(
-              size: min(42, max(32, proxy.size.width * 0.1)),
-              weight: .black,
-              design: .rounded
-            )
-          )
+          .font(RaidTypography.screenTitle)
           .foregroundStyle(.orange)
           .shadow(color: .black.opacity(0.75), radius: 4, y: 2)
           .position(x: proxy.size.width / 2, y: max(58, centerY - cardHeight / 2 - 52))
@@ -688,7 +690,7 @@ struct GameOverView: View {
         VStack(spacing: 0) {
           VStack(spacing: 5) {
             Text("\(summary.score)")
-              .font(.system(size: 38, weight: .black, design: .rounded))
+              .font(.system(.largeTitle, design: .rounded, weight: .black))
               .foregroundStyle(.white)
               .monospacedDigit()
             HStack(spacing: 10) {
@@ -751,17 +753,13 @@ struct GameOverView: View {
             model.beginGame(mode: summary.mode)
           } label: {
             Label("Play again", systemImage: "arrow.clockwise.circle.fill")
-              .font(.title3.bold())
-              .frame(maxWidth: 230)
-              .padding(.vertical, 10)
           }
-          .buttonStyle(.borderedProminent)
-          .tint(.orange)
+          .buttonStyle(RaidPrimaryButtonStyle())
           .accessibilityLabel("Play again")
 
           HStack(spacing: 12) {
             Button("Home") { model.showStart() }
-              .buttonStyle(.bordered)
+              .buttonStyle(RaidSecondaryButtonStyle())
             #if !os(tvOS)
               ShareLink(
                 item: model.lastChallenge?.shareText
@@ -769,7 +767,7 @@ struct GameOverView: View {
               ) {
                 Label("Share", systemImage: "square.and.arrow.up")
               }
-              .buttonStyle(.bordered)
+              .buttonStyle(RaidSecondaryButtonStyle())
             #endif
           }
         }
