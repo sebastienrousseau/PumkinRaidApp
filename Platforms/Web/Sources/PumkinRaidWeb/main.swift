@@ -190,7 +190,7 @@ private final class BrowserGame {
     if simulation.state.isGameOver {
       running = false
       saveBestScore(simulation.state.session.score)
-      document.getElementById("music").object?.pause?()
+      _ = document.getElementById("music").object?.pause?()
       _ = document.getElementById("menu").object?.classList.remove("hidden")
       document.getElementById("play").object?.innerText = .string("PLAY CLASSIC AGAIN")
     } else {
@@ -245,7 +245,7 @@ private final class BrowserGame {
       let x = pumpkin.position.x * width
       let y = pumpkin.position.y * height
       let radius = pumpkin.radius * min(width, height)
-      let frame = (simulation.state.tick / 10 + pumpkin.id) % 3 + 1
+      let frame = (Int(simulation.state.tick / 10 % 3) + pumpkin.id) % 3 + 1
       if let image = document.getElementById("pumpkin-sprite-\(frame)").object,
         image.complete.boolean == true
       {
