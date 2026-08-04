@@ -39,7 +39,12 @@ struct StartView: View {
         Button {
           model.showSettings()
         } label: {
-          Label("Guide", systemImage: "questionmark.circle.fill")
+          HStack(spacing: 8) {
+            BundledImage(name: "button-info")
+              .scaledToFit()
+              .frame(width: 28, height: 28)
+            Text("Guide")
+          }
         }
         .buttonStyle(RaidSecondaryButtonStyle())
         .accessibilityLabel("Settings and game guide")
@@ -333,14 +338,22 @@ struct ModeSelectionView: View {
           .foregroundStyle(.white.opacity(0.76))
           .multilineTextAlignment(.leading)
         Spacer(minLength: 0)
-        Label("Play", systemImage: "arrow.right.circle.fill")
-          .font(.subheadline.weight(.bold))
-          .foregroundStyle(.orange)
+        HStack(spacing: 8) {
+          Text("Play")
+          BundledImage(name: "button-start")
+            .scaledToFit()
+            .frame(width: 28, height: 28)
+        }
+        .font(.subheadline.weight(.bold))
+        .foregroundStyle(.orange)
       }
       .frame(maxWidth: .infinity, minHeight: 150, alignment: .leading)
       .padding(20)
       .background(
-        .black.opacity(0.78), in: RoundedRectangle(cornerRadius: RaidMetrics.cardRadius)
+        BundledImage(name: "leaderboard-panel")
+          .scaledToFill()
+          .opacity(0.84)
+          .clipShape(RoundedRectangle(cornerRadius: RaidMetrics.cardRadius))
       )
       .overlay(
         RoundedRectangle(cornerRadius: RaidMetrics.cardRadius)
@@ -474,7 +487,12 @@ struct PlayerHubView: View {
           }
           .frame(maxWidth: .infinity, minHeight: 125)
           .padding(12)
-          .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 15))
+          .background(
+            BundledImage(name: "leaderboard-panel")
+              .scaledToFill()
+              .opacity(unlocked ? 0.72 : 0.48)
+              .clipShape(RoundedRectangle(cornerRadius: 15))
+          )
           .overlay(
             RoundedRectangle(cornerRadius: 15)
               .stroke(equipped ? .orange : .white.opacity(0.12), lineWidth: 1.5)
@@ -581,7 +599,11 @@ struct GameView: View {
             Image(systemName: "pause.fill")
               .font(.headline.weight(.black))
               .frame(width: 42, height: 42)
-              .background(.black.opacity(0.78), in: Circle())
+              .background(
+                BundledImage(name: "leaderboard-panel")
+                  .scaledToFill()
+                  .clipShape(Circle())
+              )
               .overlay(Circle().stroke(.orange.opacity(0.9), lineWidth: 1.5))
           }
           .buttonStyle(.plain)
@@ -674,18 +696,21 @@ struct GameOverView: View {
 
   var body: some View {
     GeometryReader { proxy in
+      let isLandscape = proxy.size.width / max(1, proxy.size.height) >= 1.15
       let cardWidth = min(560, max(300, proxy.size.width - 48))
       let visibleEntries = Array(leaderboard.entries.prefix(proxy.size.height < 620 ? 3 : 5))
       let rowHeight: CGFloat = proxy.size.height < 620 ? 40 : 48
       let cardHeight = 188 + rowHeight * CGFloat(max(1, visibleEntries.count))
       let centerY = proxy.size.height / 2
       ZStack {
-        GameArtwork(name: "gameover")
-        Text("GAME OVER")
-          .font(RaidTypography.screenTitle)
-          .foregroundStyle(.orange)
-          .shadow(color: .black.opacity(0.75), radius: 4, y: 2)
-          .position(x: proxy.size.width / 2, y: max(58, centerY - cardHeight / 2 - 52))
+        gameOverBackdrop(isLandscape: isLandscape, size: proxy.size)
+        if isLandscape {
+          Text("GAME OVER")
+            .font(RaidTypography.screenTitle)
+            .foregroundStyle(.orange)
+            .shadow(color: .black.opacity(0.75), radius: 4, y: 2)
+            .position(x: proxy.size.width / 2, y: max(58, centerY - cardHeight / 2 - 52))
+        }
 
         VStack(spacing: 0) {
           VStack(spacing: 5) {
@@ -741,7 +766,11 @@ struct GameOverView: View {
         .padding(.horizontal, min(30, cardWidth * 0.07))
         .padding(.vertical, 12)
         .frame(width: cardWidth, height: cardHeight)
-        .background(.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 20))
+        .background(
+          BundledImage(name: "leaderboard-panel")
+            .scaledToFill()
+            .clipShape(RoundedRectangle(cornerRadius: 20))
+        )
         .overlay(
           RoundedRectangle(cornerRadius: 20)
             .stroke(.orange.opacity(0.9), lineWidth: 1.5)
@@ -752,7 +781,12 @@ struct GameOverView: View {
           Button {
             model.beginGame(mode: summary.mode)
           } label: {
-            Label("Play again", systemImage: "arrow.clockwise.circle.fill")
+            HStack(spacing: 10) {
+              BundledImage(name: "button-start")
+                .scaledToFit()
+                .frame(width: 30, height: 30)
+              Text("Play again")
+            }
           }
           .buttonStyle(RaidPrimaryButtonStyle())
           .accessibilityLabel("Play again")
@@ -779,6 +813,29 @@ struct GameOverView: View {
       }
     }
     .ignoresSafeArea()
+  }
+
+  @ViewBuilder
+  private func gameOverBackdrop(isLandscape: Bool, size: CGSize) -> some View {
+    if isLandscape {
+      BundledImage(name: "background-wide")
+        .scaledToFill()
+        .frame(width: size.width, height: size.height)
+        .clipped()
+        .overlay(Color(red: 0.22, green: 0.02, blue: 0.01).opacity(0.52))
+      BundledImage(name: "button-death")
+        .scaledToFit()
+        .frame(width: min(size.width * 0.24, 300))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .padding(.trailing, max(18, size.width * 0.035))
+        .padding(.bottom, 12)
+        .opacity(0.78)
+    } else {
+      BundledImage(name: "gameover-backdrop-tablet")
+        .scaledToFill()
+        .frame(width: size.width, height: size.height)
+        .clipped()
+    }
   }
 
   private var modeTitle: String {

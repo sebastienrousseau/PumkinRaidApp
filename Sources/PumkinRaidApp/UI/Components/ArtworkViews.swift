@@ -132,14 +132,13 @@ struct RaidPrimaryButtonStyle: ButtonStyle {
       .frame(minHeight: RaidMetrics.controlHeight)
       .padding(.horizontal, 20)
       .background(
-        LinearGradient(
-          colors: [tint.opacity(configuration.isPressed ? 0.72 : 1), tint.opacity(0.7)],
-          startPoint: .top,
-          endPoint: .bottom
-        ),
-        in: Capsule()
+        BundledImage(name: "leaderboard-panel")
+          .scaledToFill()
+          .opacity(configuration.isPressed ? 0.72 : 0.94)
+          .overlay(tint.opacity(configuration.isPressed ? 0.28 : 0.16))
+          .clipShape(Capsule())
       )
-      .overlay(Capsule().stroke(.white.opacity(0.3), lineWidth: 1))
+      .overlay(Capsule().stroke(tint.opacity(0.92), lineWidth: 2))
       .scaleEffect(configuration.isPressed ? 0.97 : 1)
       .shadow(color: tint.opacity(0.32), radius: 10, y: 5)
   }
@@ -152,8 +151,47 @@ struct RaidSecondaryButtonStyle: ButtonStyle {
       .foregroundStyle(.white)
       .frame(minHeight: RaidMetrics.controlHeight)
       .padding(.horizontal, 18)
-      .background(.black.opacity(configuration.isPressed ? 0.82 : 0.66), in: Capsule())
+      .background(
+        BundledImage(name: "leaderboard-panel")
+          .scaledToFill()
+          .opacity(configuration.isPressed ? 0.82 : 0.7)
+          .clipShape(Capsule())
+      )
       .overlay(Capsule().stroke(RaidTheme.orange.opacity(0.72), lineWidth: 1))
+      .scaleEffect(configuration.isPressed ? 0.98 : 1)
+  }
+}
+
+private struct MoonArtworkButtonStyle: ButtonStyle {
+  let size: CGFloat
+  let pulsing: Bool
+
+  func makeBody(configuration: Configuration) -> some View {
+    ZStack {
+      Circle()
+        .fill(
+          RadialGradient(
+            colors: [.white, RaidTheme.moon, Color(red: 0.52, green: 0.68, blue: 0.68)],
+            center: .topLeading,
+            startRadius: 3,
+            endRadius: size * 0.58
+          )
+        )
+      Circle()
+        .stroke(.white.opacity(0.9), lineWidth: 2)
+      Circle()
+        .fill(.black.opacity(0.08))
+        .frame(width: size * 0.18)
+        .offset(x: -size * 0.18, y: -size * 0.16)
+      BundledImage(name: configuration.isPressed ? "button-start-pressed" : "button-start")
+        .scaledToFit()
+        .frame(width: size * 0.64, height: size * 0.64)
+    }
+    .frame(width: size, height: size)
+    .contentShape(Circle())
+    .scaleEffect(configuration.isPressed ? 0.94 : (pulsing ? 1.045 : 0.97))
+    .shadow(color: RaidTheme.moon.opacity(0.9), radius: pulsing ? 28 : 14)
+    .shadow(color: .white.opacity(0.65), radius: 7)
   }
 }
 
@@ -163,37 +201,10 @@ struct MoonPlayButton: View {
   let action: () -> Void
 
   var body: some View {
-    Button(action: action) {
-      ZStack {
-        Circle()
-          .fill(
-            RadialGradient(
-              colors: [.white, RaidTheme.moon, Color(red: 0.52, green: 0.68, blue: 0.68)],
-              center: .topLeading,
-              startRadius: 3,
-              endRadius: size * 0.58
-            )
-          )
-        Circle()
-          .stroke(.white.opacity(0.9), lineWidth: 2)
-        Circle()
-          .fill(.black.opacity(0.08))
-          .frame(width: size * 0.18)
-          .offset(x: -size * 0.18, y: -size * 0.16)
-        Image(systemName: "arrow.right")
-          .font(.system(size: size * 0.31, weight: .black, design: .rounded))
-          .foregroundStyle(RaidTheme.ink)
-          .offset(x: size * 0.025)
-      }
-      .frame(width: size, height: size)
-      .contentShape(Circle())
-      .scaleEffect(pulsing ? 1.045 : 0.97)
-      .shadow(color: RaidTheme.moon.opacity(0.9), radius: pulsing ? 28 : 14)
-      .shadow(color: .white.opacity(0.65), radius: 7)
-    }
-    .buttonStyle(.plain)
-    .accessibilityLabel("Play Pumkin Raid")
-    .accessibilityHint("Opens game mode selection")
+    Button(action: action) { Color.clear }
+      .buttonStyle(MoonArtworkButtonStyle(size: size, pulsing: pulsing))
+      .accessibilityLabel("Play Pumkin Raid")
+      .accessibilityHint("Opens game mode selection")
   }
 }
 

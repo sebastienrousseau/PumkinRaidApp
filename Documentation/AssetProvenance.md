@@ -10,6 +10,8 @@ large and contains unrelated themes.
 | Runtime asset | Source family | Transformation |
 | --- | --- | --- |
 | `splash-backdrop-tablet.png` | Theme 1 home PSD, `back` layer | Text-free layer export, edge cleanup, lossless PNG |
+| `gameover-backdrop-tablet.png` | Theme 1 leaderboard PSD, `back` layer | Score-panel-free layer export, transparent pasteboard crop, lossless PNG |
+| `leaderboard-panel.png` | Theme 1 leaderboard PSD, empty panel layer | Direct lossless layer export for live localized scores and asset-backed controls |
 | `background-wide.jpg` | Theme 1 game background | Existing owned wide export copied for browser parity |
 | `phantom.png` | Theme 1 character art | Existing transparent runtime export |
 | `pumpkin1.png`–`pumpkin3.png` | Theme 1 pumpkin animation | Existing transparent animation frames |

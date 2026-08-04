@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Replace the flattened duplicate game-over scoreboard with separate owned backdrop
+  and empty-panel layers; use original normal/pressed artwork for arrows and asset-led
+  primary, secondary, Guide, mode, and replay controls.
 - Unify typography, spacing, radii, and primary/secondary controls; reserve a
   collision-free portrait launch zone, add a dedicated landscape composition,
   and wrap mode actions responsively on compact screens.
