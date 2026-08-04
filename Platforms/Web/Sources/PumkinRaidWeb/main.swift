@@ -86,14 +86,11 @@ private final class BrowserGame {
     let pointerDown = JSClosure { [weak self] arguments in
       guard let self, let event = arguments.first?.object else { return .undefined }
       let point = self.normalizedPointer(event)
-      let ghost = self.simulation.state.ghost.position
-      let dx = point.x - ghost.x
-      let dy = point.y - ghost.y
       self.pointerIsActive = true
       self.inputRouter.beginPointer(
         at: point,
         timestamp: (event.timeStamp.number ?? 0) / 1_000,
-        controlsGhost: (dx * dx + dy * dy).squareRoot() <= 0.14
+        controlsGhost: true
       )
       _ = self.canvas.setPointerCapture?(event.pointerId)
       _ = event.preventDefault!()

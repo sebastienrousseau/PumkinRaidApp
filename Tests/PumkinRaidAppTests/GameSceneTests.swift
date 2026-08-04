@@ -59,17 +59,17 @@ final class GameSceneTests: XCTestCase {
   func testPointerDragMovesGhostThroughSemanticInput() throws {
     let scene = GameScene(settings: silentSettings, seed: 18)
     scene.installSceneGraph()
-    let phantom = try XCTUnwrap(scene.childNode(withName: "//phantom"))
     let before = scene.authoritativeState.ghost.position
-    let destination = CGPoint(x: phantom.position.x + 70, y: phantom.position.y + 24)
+    let start = CGPoint(x: scene.size.width * 0.2, y: scene.size.height * 0.65)
+    let destination = CGPoint(x: start.x + 70, y: start.y + 24)
 
-    scene.pointerDown(at: phantom.position, timestamp: 1)
+    scene.pointerDown(at: start, timestamp: 1)
     scene.pointerDragged(to: destination)
     scene.update(1)
     scene.update(1.02)
     scene.pointerUp(at: destination, timestamp: 1.1)
 
-    XCTAssertGreaterThan(scene.authoritativeState.ghost.position.x, before.x)
+    XCTAssertLessThan(scene.authoritativeState.ghost.position.x, before.x)
     XCTAssertNotEqual(scene.authoritativeState.ghost.position.y, before.y)
   }
 

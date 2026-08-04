@@ -651,11 +651,14 @@ final class GameScene: SKScene {
 
   private func beginGesture(at point: CGPoint, timestamp: TimeInterval) {
     gestureLastPoint = point
-    draggingPhantom = phantom.frame.insetBy(dx: -48, dy: -48).contains(point)
+    // Direct manipulation begins anywhere in the arena. A stationary press still
+    // becomes a shriek in SemanticInputRouter, while a drag steers the ghost and
+    // a fast swipe becomes a dash. This avoids tiny moving hit targets on touch.
+    draggingPhantom = true
     inputRouter.beginPointer(
       at: normalizedPoint(point),
       timestamp: timestamp,
-      controlsGhost: draggingPhantom
+      controlsGhost: true
     )
   }
 
