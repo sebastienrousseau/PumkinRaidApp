@@ -1,31 +1,23 @@
-import GameEngineLib
 import Foundation
+import GameEngineLib
 import JavaScriptEventLoop
 import JavaScriptKit
 
 JavaScriptEventLoop.installGlobalExecutor()
-
-private struct FallingPumpkin {
-  var x: Double
-  var y: Double
-  var speed: Double
-  var drift: Double
-  var radius: Double
-}
 
 private final class BrowserGame {
   private let window = JSObject.global
   private let document = JSObject.global.document
   private let canvas: JSObject
   private let context: JSObject
-  private var session = GameSession()
-  private var director = SpawnDirector(seed: UInt64(Date.now.timeIntervalSince1970 * 1_000))
-  private var pumpkins: [FallingPumpkin] = []
-  private var ghostX = 0.5
-  private var ghostY = 0.84
+  private var simulation = GameSimulation(seed: 0)
   private var pressedKeys: Set<String> = []
+  private var pendingActions: [InputAction] = []
+  private var pointerTarget: Vector2?
+  private var pointerStart: Vector2?
+  private var pointerStartTime = 0.0
   private var lastTimestamp = 0.0
-  private var elapsed = 0.0
+  private var accumulator = 0.0
   private var running = false
   private var frameClosure: JSClosure?
   private var eventClosures: [JSClosure] = []
@@ -55,9 +47,21 @@ private final class BrowserGame {
 
   private func installInput() {
     let keyDown = JSClosure { [weak self] arguments in
-      guard let key = arguments.first?.object?.key.string else { return .undefined }
-      self?.pressedKeys.insert(key.lowercased())
-      arguments.first?.object?.preventDefault!()
+      guard let self, let event = arguments.first?.object, let key = event.key.string else {
+        return .undefined
+      }
+      let normalized = key.lowercased()
+      self.pressedKeys.insert(normalized)
+      if event.repeat.boolean != true {
+        switch normalized {
+        case " ": self.pendingActions.append(.dash(x: self.keyboardX, y: self.keyboardY))
+        case "enter": self.pendingActions.append(.shriek)
+        case "escape":
+          self.pendingActions.append(self.simulation.state.isPaused ? .resume : .pause)
+        default: break
+        }
+      }
+      event.preventDefault!()
       return .undefined
     }
     let keyUp = JSClosure { [weak self] arguments in
@@ -65,34 +69,77 @@ private final class BrowserGame {
       self?.pressedKeys.remove(key.lowercased())
       return .undefined
     }
-    let pointer = JSClosure { [weak self] arguments in
+    let pointerDown = JSClosure { [weak self] arguments in
       guard let self, let event = arguments.first?.object else { return .undefined }
-      let rect = self.canvas.getBoundingClientRect!().object!
-      let width = max(1, rect.width.number ?? 1)
-      let height = max(1, rect.height.number ?? 1)
-      self.ghostX = min(0.96, max(0.04, ((event.clientX.number ?? 0) - (rect.left.number ?? 0)) / width))
-      self.ghostY = min(0.96, max(0.08, ((event.clientY.number ?? 0) - (rect.top.number ?? 0)) / height))
+      let point = self.normalizedPointer(event)
+      self.pointerStart = point
+      self.pointerTarget = point
+      self.pointerStartTime = event.timeStamp.number ?? 0
+      self.canvas.setPointerCapture?(event.pointerId)
+      event.preventDefault!()
+      return .undefined
+    }
+    let pointerMove = JSClosure { [weak self] arguments in
+      guard let self, self.pointerStart != nil, let event = arguments.first?.object else {
+        return .undefined
+      }
+      self.pointerTarget = self.normalizedPointer(event)
+      event.preventDefault!()
+      return .undefined
+    }
+    let pointerUp = JSClosure { [weak self] arguments in
+      guard let self, let event = arguments.first?.object, let start = self.pointerStart else {
+        return .undefined
+      }
+      let end = self.normalizedPointer(event)
+      let dx = end.x - start.x
+      let dy = end.y - start.y
+      let distance = (dx * dx + dy * dy).squareRoot()
+      let duration = (event.timeStamp.number ?? 0) - self.pointerStartTime
+      if distance >= 0.08, duration <= 550 {
+        self.pendingActions.append(.dash(x: dx, y: dy))
+      } else if distance < 0.035 {
+        self.pendingActions.append(.shriek)
+      }
+      self.pointerStart = nil
+      self.pointerTarget = nil
+      event.preventDefault!()
       return .undefined
     }
     let resizeClosure = JSClosure { [weak self] _ in
       self?.resize()
       return .undefined
     }
+    let blur = JSClosure { [weak self] _ in
+      self?.pressedKeys.removeAll()
+      self?.pointerStart = nil
+      self?.pointerTarget = nil
+      if self?.running == true, self?.simulation.state.isPaused == false {
+        self?.pendingActions.append(.pause)
+      }
+      return .undefined
+    }
     window.addEventListener!("keydown", keyDown)
     window.addEventListener!("keyup", keyUp)
-    canvas.addEventListener!("pointerdown", pointer)
-    canvas.addEventListener!("pointermove", pointer)
+    canvas.addEventListener!("pointerdown", pointerDown)
+    canvas.addEventListener!("pointermove", pointerMove)
+    window.addEventListener!("pointerup", pointerUp)
+    window.addEventListener!("pointercancel", pointerUp)
     window.addEventListener!("resize", resizeClosure)
-    eventClosures = [keyDown, keyUp, pointer, resizeClosure]
+    window.addEventListener!("blur", blur)
+    eventClosures += [keyDown, keyUp, pointerDown, pointerMove, pointerUp, resizeClosure, blur]
   }
 
   private func start() {
-    session = GameSession()
-    pumpkins.removeAll(keepingCapacity: true)
-    elapsed = 0
+    let seed = UInt64(Date.now.timeIntervalSince1970 * 1_000_000)
+    simulation = GameSimulation(seed: seed)
+    pendingActions.removeAll(keepingCapacity: true)
+    pressedKeys.removeAll()
+    pointerTarget = nil
+    pointerStart = nil
     lastTimestamp = 0
+    accumulator = 0
     running = true
-    for _ in 0..<GameRules.enemyCount { spawn() }
     document.getElementById("menu")?.object?.classList.add!("hidden")
     scheduleFrame()
   }
@@ -107,31 +154,24 @@ private final class BrowserGame {
 
   private func tick(timestamp: Double) {
     guard running else { return }
-    let delta = lastTimestamp == 0 ? 0 : min(0.1, (timestamp - lastTimestamp) / 1_000)
+    let frameDelta = lastTimestamp == 0 ? 0 : min(0.1, (timestamp - lastTimestamp) / 1_000)
     lastTimestamp = timestamp
-    elapsed += delta
-    moveGhost(delta: delta)
-
-    let width = canvas.width.number ?? 1
-    let height = canvas.height.number ?? 1
-    for index in pumpkins.indices.reversed() {
-      pumpkins[index].y += pumpkins[index].speed * delta
-      pumpkins[index].x += pumpkins[index].drift * delta
-      let dx = pumpkins[index].x - ghostX * width
-      let dy = pumpkins[index].y - ghostY * height
-      if hypot(dx, dy) < pumpkins[index].radius + min(width, height) * 0.045 {
-        _ = session.collideWithPumpkin()
-        pumpkins.remove(at: index)
-        spawn()
-      } else if pumpkins[index].y > height + pumpkins[index].radius {
-        _ = session.avoidPumpkin()
-        pumpkins.remove(at: index)
-        spawn()
-      }
+    accumulator += frameDelta
+    let fixedDelta = 1 / Double(simulation.configuration.ticksPerSecond)
+    var steps = 0
+    while accumulator >= fixedDelta, steps < 6 {
+      var actions: [InputAction] = []
+      if keyboardX != 0 || keyboardY != 0 { actions.append(.move(x: keyboardX, y: keyboardY)) }
+      if let pointerTarget { actions.append(.moveTo(x: pointerTarget.x, y: pointerTarget.y)) }
+      actions.append(contentsOf: pendingActions)
+      pendingActions.removeAll(keepingCapacity: true)
+      _ = simulation.step(InputFrame(actions: actions))
+      accumulator -= fixedDelta
+      steps += 1
     }
     render()
     updateHUD()
-    if session.isGameOver {
+    if simulation.state.session.isGameOver {
       running = false
       document.getElementById("menu")?.object?.classList.remove!("hidden")
       document.getElementById("play")?.object?.innerText = "PLAY AGAIN"
@@ -140,28 +180,24 @@ private final class BrowserGame {
     }
   }
 
-  private func moveGhost(delta: Double) {
-    let speed = delta * 0.72
-    if pressedKeys.contains("arrowleft") || pressedKeys.contains("a") { ghostX -= speed }
-    if pressedKeys.contains("arrowright") || pressedKeys.contains("d") { ghostX += speed }
-    if pressedKeys.contains("arrowup") || pressedKeys.contains("w") { ghostY -= speed }
-    if pressedKeys.contains("arrowdown") || pressedKeys.contains("s") { ghostY += speed }
-    ghostX = min(0.96, max(0.04, ghostX))
-    ghostY = min(0.96, max(0.08, ghostY))
+  private var keyboardX: Double {
+    Double((pressedKeys.contains("arrowright") || pressedKeys.contains("d") ? 1 : 0)
+      - (pressedKeys.contains("arrowleft") || pressedKeys.contains("a") ? 1 : 0))
   }
 
-  private func spawn() {
-    let plan = director.nextPlan(elapsedTime: elapsed, score: session.score)
-    let width = canvas.width.number ?? 1
-    let height = canvas.height.number ?? 1
-    pumpkins.append(
-      FallingPumpkin(
-        x: plan.horizontalPosition * width,
-        y: -40 - plan.verticalOffset,
-        speed: plan.speed * max(0.8, height / 760),
-        drift: plan.horizontalDrift,
-        radius: 27 * plan.scale
-      )
+  private var keyboardY: Double {
+    let value = Double((pressedKeys.contains("arrowdown") || pressedKeys.contains("s") ? 1 : 0)
+      - (pressedKeys.contains("arrowup") || pressedKeys.contains("w") ? 1 : 0))
+    return keyboardX == 0 && value == 0 ? -1 : value
+  }
+
+  private func normalizedPointer(_ event: JSObject) -> Vector2 {
+    let rect = canvas.getBoundingClientRect!().object!
+    let width = max(1, rect.width.number ?? 1)
+    let height = max(1, rect.height.number ?? 1)
+    return Vector2(
+      x: min(1, max(0, ((event.clientX.number ?? 0) - (rect.left.number ?? 0)) / width)),
+      y: min(1, max(0, ((event.clientY.number ?? 0) - (rect.top.number ?? 0)) / height))
     )
   }
 
@@ -182,15 +218,24 @@ private final class BrowserGame {
     context.fillStyle = .object(gradient)
     context.fillRect!(0, 0, width, height)
 
-    context.fillStyle = "#ff7a00"
-    for pumpkin in pumpkins {
+    for pumpkin in simulation.state.pumpkins {
+      let x = pumpkin.position.x * width
+      let y = pumpkin.position.y * height
+      let radius = pumpkin.radius * min(width, height)
+      switch pumpkin.archetype {
+      case .standard: context.fillStyle = "#ff7a00"
+      case .swift: context.fillStyle = "#ffb000"
+      case .drifting: context.fillStyle = "#ef4b22"
+      case .heavy: context.fillStyle = "#9f3d12"
+      }
       context.beginPath!()
-      context.ellipse!(pumpkin.x, pumpkin.y, pumpkin.radius, pumpkin.radius * 0.82, 0, 0, Double.pi * 2)
+      context.ellipse!(x, y, radius, radius * 0.82, 0, 0, Double.pi * 2)
       context.fill!()
     }
 
-    let x = ghostX * width
-    let y = ghostY * height
+    let ghost = simulation.state.ghost.position
+    let x = ghost.x * width
+    let y = ghost.y * height
     let radius = min(width, height) * 0.045
     context.fillStyle = "rgba(210, 239, 255, .92)"
     context.beginPath!()
@@ -204,6 +249,7 @@ private final class BrowserGame {
   }
 
   private func updateHUD() {
+    let session = simulation.state.session
     document.getElementById("score")?.object?.innerText = "SCORE  \(session.score)"
     document.getElementById("lives")?.object?.innerText = "LIVES  \(session.lives)"
   }

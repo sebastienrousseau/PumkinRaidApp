@@ -4,8 +4,8 @@
 [![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20iPadOS%20%7C%20tvOS%20%7C%20macOS%20%7C%20Web-blue.svg)](#platforms)
 [![CI](https://github.com/sebastienrousseau/PumkinRaidApp/actions/workflows/swift.yml/badge.svg)](https://github.com/sebastienrousseau/PumkinRaidApp/actions)
 
-Pumkin Raid is a dependency-free Apple game written in Swift, with a Swift
-WebAssembly browser host. Guide a ghost through an escalating pumpkin raid using
+Pumkin Raid is a pure-Swift Apple game with a Swift WebAssembly browser host and
+a first-party `GameEngineLib` package. Guide a ghost through an escalating raid using
 keyboard, pointer, touch, motion, or an Apple TV controller.
 
 This repository is a modern rewrite of the original cocos2d game—not a wrapper.
@@ -15,8 +15,8 @@ short sessions that invite one more run.
 
 ## Highlights
 
-- Pure-Swift reusable `GameEngineLib` for scoring, inventory, combos, seeded random
-  spawning, difficulty, and local rankings.
+- Pure-Swift reusable `GameEngineLib` for deterministic simulation, semantic input,
+  replay verification, safe waves, scoring, combos, difficulty, and local rankings.
 - SwiftUI navigation, SpriteKit gameplay, AVFoundation audio, Core Motion input,
   GameController support, and native AppKit keyboard event capture.
 - Anti-repeat seven-lane spawn director with standard, swift, drifting, and heavy

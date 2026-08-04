@@ -14,13 +14,17 @@ let package = Package(
     .executable(name: "PumkinRaidApp", targets: ["PumkinRaidApp"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/sebastienrousseau/GameEngineLib.git", from: "0.1.0")
+    .package(url: "https://github.com/sebastienrousseau/GameEngineLib.git", from: "0.2.0")
   ],
   targets: [
     .executableTarget(
       name: "PumkinRaidApp",
       dependencies: [.product(name: "GameEngineLib", package: "GameEngineLib")],
       resources: [.process("Resources")]
+    ),
+    .testTarget(
+      name: "PumkinRaidAppTests",
+      dependencies: ["PumkinRaidApp", .product(name: "GameEngineLib", package: "GameEngineLib")]
     ),
   ]
 )
