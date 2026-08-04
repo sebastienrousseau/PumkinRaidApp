@@ -37,6 +37,7 @@ final class GameSceneTests: XCTestCase {
       XCTAssertGreaterThanOrEqual(panel.frame.minX, 16, "HUD clips at \(size)")
       XCTAssertLessThanOrEqual(panel.frame.maxX, size.width - 16, "HUD clips at \(size)")
       XCTAssertLessThanOrEqual(panel.frame.maxY, size.height - 20, "HUD too high at \(size)")
+      XCTAssertLessThanOrEqual(panel.frame.width, 764, "HUD becomes too wide at \(size)")
 
       for name in ["hud-score", "hud-lives", "hud-dashes", "hud-shrieks"] {
         let label = try XCTUnwrap(scene.childNode(withName: name) as? SKLabelNode)
@@ -45,6 +46,37 @@ final class GameSceneTests: XCTestCase {
         XCTAssertTrue(panel.frame.insetBy(dx: -2, dy: -2).contains(label.position))
       }
     }
+  }
+
+  func testGameplayArtworkScalesUpAcrossResolutionClasses() throws {
+    let compactMetrics = GameplayArtworkMetrics(sceneSize: CGSize(width: 390, height: 844))
+    let largeMetrics = GameplayArtworkMetrics(sceneSize: CGSize(width: 1_920, height: 1_080))
+    XCTAssertGreaterThanOrEqual(compactMetrics.ghostSize.width, 80)
+    XCTAssertGreaterThanOrEqual(compactMetrics.pumpkinSize(radiusScale: 1).width, 79)
+    XCTAssertGreaterThanOrEqual(compactMetrics.sweetSize.width, 56)
+    XCTAssertGreaterThan(largeMetrics.ghostSize.width, compactMetrics.ghostSize.width * 1.55)
+    XCTAssertGreaterThan(
+      largeMetrics.pumpkinSize(radiusScale: 1).width,
+      compactMetrics.pumpkinSize(radiusScale: 1).width * 1.55
+    )
+    XCTAssertGreaterThan(largeMetrics.sweetSize.width, compactMetrics.sweetSize.width * 1.55)
+
+    let compact = GameScene(settings: silentSettings, seed: 7)
+    compact.size = CGSize(width: 390, height: 844)
+    compact.installSceneGraph()
+    let compactGhost = try XCTUnwrap(compact.childNode(withName: "//phantom") as? SKSpriteNode)
+
+    let large = GameScene(settings: silentSettings, seed: 7)
+    large.size = CGSize(width: 1_920, height: 1_080)
+    large.installSceneGraph()
+    let largeGhost = try XCTUnwrap(large.childNode(withName: "//phantom") as? SKSpriteNode)
+
+    XCTAssertEqual(compactGhost.size.width, compactMetrics.ghostSize.width, accuracy: 0.001)
+    XCTAssertEqual(compactGhost.size.height, compactMetrics.ghostSize.height, accuracy: 0.001)
+    XCTAssertGreaterThan(largeGhost.size.width, compactGhost.size.width * 1.55)
+    XCTAssertEqual(largeGhost.size.width, largeMetrics.ghostSize.width, accuracy: 0.001)
+    XCTAssertEqual(largeGhost.size.height, largeMetrics.ghostSize.height, accuracy: 0.001)
+    XCTAssertLessThanOrEqual(largeGhost.size.width, 200)
   }
 
   func testStartContentNeverEntersPortraitCharacterZone() {

@@ -39,7 +39,7 @@ struct StartView: View {
         Button {
           model.showSettings()
         } label: {
-          RaidArtworkIconLabel(artName: "button-info", title: "Guide", size: 52)
+          RaidArtworkIconLabel(artName: "setting_tutorial_button", title: "Guide", size: 62)
         }
         .buttonStyle(RaidArtworkIconButtonStyle())
         .accessibilityLabel("Settings and game guide")
@@ -103,82 +103,110 @@ struct SettingsView: View {
   @EnvironmentObject private var model: AppModel
 
   var body: some View {
-    ZStack {
-      GameArtwork(name: "setting_background")
-      ScrollView {
-        VStack(spacing: 18) {
-          RaidScreenHeading(title: "SETTINGS")
-          Toggle("Background music", isOn: $model.settings.musicEnabled)
-          Toggle("Special effects", isOn: $model.settings.effectsEnabled)
-          Toggle("Vibration", isOn: $model.settings.vibrationEnabled)
-          Toggle("Visual sound captions", isOn: $model.settings.captionsEnabled)
-          Divider()
-          Text("ACCESSIBILITY & CONTROLS")
-            .font(RaidTypography.sectionTitle)
-            .foregroundStyle(.orange)
-          Toggle("Reduce motion", isOn: $model.settings.reducedMotionEnabled)
-          Toggle("Screen shake", isOn: $model.settings.screenShakeEnabled)
-            .disabled(model.settings.reducedMotionEnabled)
-          Toggle("High contrast", isOn: $model.settings.highContrastEnabled)
-          #if os(iOS)
-            Toggle("Tilt controls", isOn: $model.settings.tiltControlsEnabled)
-          #endif
-          Toggle("Left-handed controls", isOn: $model.settings.leftHandedControls)
-          Toggle("Assist mode (slower raid)", isOn: $model.settings.assistModeEnabled)
-          VStack(alignment: .leading, spacing: 6) {
-            Text("Input sensitivity")
-              .font(RaidTypography.support)
-            #if os(tvOS)
-              HStack(spacing: 16) {
-                Button("Less") {
-                  model.settings.inputSensitivity = max(
-                    0.5,
-                    model.settings.inputSensitivity - 0.1
-                  )
-                }
-                .buttonStyle(RaidSecondaryButtonStyle())
-                Button("More") {
-                  model.settings.inputSensitivity = min(
-                    1.5,
-                    model.settings.inputSensitivity + 0.1
-                  )
-                }
-                .buttonStyle(RaidSecondaryButtonStyle())
-              }
-            #else
-              Slider(value: $model.settings.inputSensitivity, in: 0.5...1.5, step: 0.1)
+    GeometryReader { proxy in
+      ZStack {
+        guideBackdrop(size: proxy.size)
+        ScrollView {
+          VStack(spacing: 18) {
+            RaidScreenHeading(title: "SETTINGS")
+            Toggle("Background music", isOn: $model.settings.musicEnabled)
+            Toggle("Special effects", isOn: $model.settings.effectsEnabled)
+            Toggle("Vibration", isOn: $model.settings.vibrationEnabled)
+            Toggle("Visual sound captions", isOn: $model.settings.captionsEnabled)
+            Divider()
+            Text("ACCESSIBILITY & CONTROLS")
+              .font(RaidTypography.sectionTitle)
+              .foregroundStyle(.orange)
+            Toggle("Reduce motion", isOn: $model.settings.reducedMotionEnabled)
+            Toggle("Screen shake", isOn: $model.settings.screenShakeEnabled)
+              .disabled(model.settings.reducedMotionEnabled)
+            Toggle("High contrast", isOn: $model.settings.highContrastEnabled)
+            #if os(iOS)
+              Toggle("Tilt controls", isOn: $model.settings.tiltControlsEnabled)
             #endif
-            Text("\(model.settings.inputSensitivity, specifier: "%.1fx")")
-              .font(RaidTypography.caption.monospacedDigit())
-              .foregroundStyle(.white.opacity(0.7))
+            Toggle("Left-handed controls", isOn: $model.settings.leftHandedControls)
+            Toggle("Assist mode (slower raid)", isOn: $model.settings.assistModeEnabled)
+            VStack(alignment: .leading, spacing: 6) {
+              Text("Input sensitivity")
+                .font(RaidTypography.support)
+              #if os(tvOS)
+                HStack(spacing: 16) {
+                  Button("Less") {
+                    model.settings.inputSensitivity = max(
+                      0.5,
+                      model.settings.inputSensitivity - 0.1
+                    )
+                  }
+                  .buttonStyle(RaidSecondaryButtonStyle())
+                  Button("More") {
+                    model.settings.inputSensitivity = min(
+                      1.5,
+                      model.settings.inputSensitivity + 0.1
+                    )
+                  }
+                  .buttonStyle(RaidSecondaryButtonStyle())
+                }
+              #else
+                Slider(value: $model.settings.inputSensitivity, in: 0.5...1.5, step: 0.1)
+              #endif
+              Text("\(model.settings.inputSensitivity, specifier: "%.1fx")")
+                .font(RaidTypography.caption.monospacedDigit())
+                .foregroundStyle(.white.opacity(0.7))
+            }
+            Divider()
+            VStack(alignment: .leading, spacing: 12) {
+              Label("Move with arrow keys, WASD, tilt, controller, or drag", systemImage: "move.3d")
+              Label("Tap, click, or press Return to shriek", systemImage: "burst.fill")
+              Label(
+                "Swipe or press Space to dash through pumpkins", systemImage: "scribble.variable")
+              Label("Collect sweets and build your high score", systemImage: "star.fill")
+            }
+            .font(RaidTypography.support)
+            Button("Choose a mode") { model.showModeSelection() }
+              .buttonStyle(RaidPrimaryButtonStyle())
+            Button("Back") { model.showStart() }
+              .buttonStyle(RaidSecondaryButtonStyle())
           }
-          Divider()
-          VStack(alignment: .leading, spacing: 12) {
-            Label("Move with arrow keys, WASD, tilt, controller, or drag", systemImage: "move.3d")
-            Label("Tap, click, or press Return to shriek", systemImage: "burst.fill")
-            Label("Swipe or press Space to dash through pumpkins", systemImage: "scribble.variable")
-            Label("Collect sweets and build your high score", systemImage: "star.fill")
-          }
-          .font(RaidTypography.support)
-          Button("Choose a mode") { model.showModeSelection() }
-            .buttonStyle(RaidPrimaryButtonStyle())
-          Button("Back") { model.showStart() }
-            .buttonStyle(RaidSecondaryButtonStyle())
+          .font(RaidTypography.body)
+          .toggleStyle(SkullToggleStyle())
+          .padding(proxy.size.width < 500 ? 22 : 32)
+          .foregroundStyle(.white)
+          .frame(maxWidth: 720)
+          .frame(maxWidth: .infinity)
         }
-        .font(RaidTypography.body)
-        .toggleStyle(SkullToggleStyle())
-        .padding(28)
-        .foregroundStyle(.white)
+        .scrollIndicators(.hidden)
+        .frame(maxWidth: 784, maxHeight: .infinity)
+        .background(.black.opacity(0.86), in: RoundedRectangle(cornerRadius: 28))
+        .overlay(
+          RoundedRectangle(cornerRadius: 28)
+            .stroke(RaidTheme.orange.opacity(0.82), lineWidth: 2)
+        )
+        .padding(.horizontal, max(16, proxy.safeAreaInsets.leading + 12))
+        .padding(.vertical, max(16, proxy.safeAreaInsets.top + 8))
       }
-      .frame(maxWidth: 720)
-      .background(.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 28))
-      .overlay(
-        RoundedRectangle(cornerRadius: 28)
-          .stroke(RaidTheme.orange.opacity(0.72), lineWidth: 1.5)
-      )
-      .padding(16)
+      .frame(width: proxy.size.width, height: proxy.size.height)
     }
     .ignoresSafeArea()
+  }
+
+  @ViewBuilder
+  private func guideBackdrop(size: CGSize) -> some View {
+    if size.width / max(1, size.height) >= 1.15 {
+      BundledImage(name: "background-wide")
+        .scaledToFill()
+        .frame(width: size.width, height: size.height)
+        .clipped()
+        .overlay(Color(red: 0.24, green: 0.025, blue: 0.015).opacity(0.58))
+        .overlay(
+          LinearGradient(
+            colors: [.black.opacity(0.28), .clear, .black.opacity(0.5)],
+            startPoint: .top,
+            endPoint: .bottom
+          )
+        )
+    } else {
+      GameArtwork(name: "setting_background")
+    }
   }
 }
 
@@ -803,11 +831,22 @@ struct GameOverView: View {
     .padding(.horizontal, min(30, width * 0.07))
     .padding(.vertical, 12)
     .frame(width: width)
-    .background(
-      BundledImage(name: "leaderboard-panel")
-        .scaledToFill()
+    .background {
+      ZStack {
+        RoundedRectangle(cornerRadius: 20)
+          .fill(.black.opacity(0.9))
+        BundledImage(name: "leaderboard-panel")
+          .scaledToFill()
+          .opacity(0.5)
+          .clipShape(RoundedRectangle(cornerRadius: 20))
+        LinearGradient(
+          colors: [.black.opacity(0.08), .black.opacity(0.48)],
+          startPoint: .top,
+          endPoint: .bottom
+        )
         .clipShape(RoundedRectangle(cornerRadius: 20))
-    )
+      }
+    }
     .overlay(
       RoundedRectangle(cornerRadius: 20)
         .stroke(.orange.opacity(0.9), lineWidth: 1.5)

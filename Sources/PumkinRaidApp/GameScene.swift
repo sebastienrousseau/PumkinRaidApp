@@ -21,6 +21,24 @@ struct CosmeticLoadout: Equatable {
   var auraID = "aura.none"
 }
 
+struct GameplayArtworkMetrics: Equatable {
+  let scale: CGFloat
+
+  init(sceneSize: CGSize) {
+    scale = min(
+      2.65,
+      max(0.95, min(sceneSize.width / 390, sceneSize.height / 600) * 1.12)
+    )
+  }
+
+  var ghostSize: CGSize { CGSize(width: 72 * scale, height: 76 * scale) }
+  var sweetSize: CGSize { CGSize(width: 50 * scale, height: 50 * scale) }
+
+  func pumpkinSize(radiusScale: CGFloat) -> CGSize {
+    CGSize(width: 71 * radiusScale * scale, height: 61 * radiusScale * scale)
+  }
+}
+
 @MainActor
 final class GameScene: SKScene {
   static let maximumTransientEffects = 96
@@ -58,7 +76,7 @@ final class GameScene: SKScene {
   #endif
 
   private var spriteScale: CGFloat {
-    min(1.65, max(0.78, min(size.width / 430, size.height / 720)))
+    GameplayArtworkMetrics(sceneSize: size).scale
   }
   private var fixedDelta: TimeInterval {
     1 / Double(simulation.configuration.ticksPerSecond)
@@ -125,9 +143,9 @@ final class GameScene: SKScene {
     }
     atmosphere.path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
     layoutHUD()
-    phantom.size = CGSize(width: 72 * spriteScale, height: 76 * spriteScale)
+    phantom.size = GameplayArtworkMetrics(sceneSize: size).ghostSize
     for node in pumpkinNodes.values { resizePumpkin(node) }
-    pickupNode?.size = CGSize(width: 50 * spriteScale, height: 50 * spriteScale)
+    pickupNode?.size = GameplayArtworkMetrics(sceneSize: size).sweetSize
     renderAuthoritativeState()
   }
 
@@ -235,7 +253,7 @@ final class GameScene: SKScene {
 
   private func layoutHUD() {
     let inset = min(52, max(20, size.width * 0.08))
-    let panelWidth = max(240, size.width - inset * 2)
+    let panelWidth = min(760, max(240, size.width - inset * 2))
     let panelHeight: CGFloat = 66
     let topMargin = max(68, min(88, size.height * 0.12))
     let centerY = size.height - topMargin
@@ -253,19 +271,19 @@ final class GameScene: SKScene {
     hudBackground.position = CGPoint(x: size.width / 2, y: centerY)
     let leftX = size.width / 2 - panelWidth * 0.25
     let rightX = size.width / 2 + panelWidth * 0.25
-    let fontSize = min(18, max(12, size.width * 0.035))
+    let fontSize = min(20, max(13, panelWidth * 0.024))
     for label in [scoreLabel, livesLabel, slicesLabel, boomsLabel] { label.fontSize = fontSize }
     scoreLabel.position = CGPoint(x: leftX, y: centerY + 15)
     livesLabel.position = CGPoint(x: leftX, y: centerY - 15)
     slicesLabel.position = CGPoint(x: rightX, y: centerY + 15)
     boomsLabel.position = CGPoint(x: rightX, y: centerY - 15)
-    statusLabel.fontSize = min(14, max(11, size.width * 0.028))
+    statusLabel.fontSize = min(15, max(11, panelWidth * 0.019))
     statusLabel.position = CGPoint(x: size.width / 2, y: centerY - panelHeight / 2 - 14)
   }
 
   private func buildPhantom() {
     phantom.name = "phantom"
-    phantom.size = CGSize(width: 72 * spriteScale, height: 76 * spriteScale)
+    phantom.size = GameplayArtworkMetrics(sceneSize: size).ghostSize
     phantom.zPosition = 5
     switch cosmetics.ghostID {
     case "ghost.frost":
@@ -344,7 +362,7 @@ final class GameScene: SKScene {
         let node = SKSpriteNode(texture: textures[0])
         node.name = "pickup-\(pickup.id)"
         node.userData = ["id": pickup.id]
-        node.size = CGSize(width: 50 * spriteScale, height: 50 * spriteScale)
+        node.size = GameplayArtworkMetrics(sceneSize: size).sweetSize
         node.zPosition = 4
         node.run(.repeatForever(.animate(with: textures, timePerFrame: 0.2)))
         world.addChild(node)
@@ -358,10 +376,7 @@ final class GameScene: SKScene {
 
   private func resizePumpkin(_ node: SKSpriteNode) {
     let scale = node.userData?["scale"] as? Double ?? 1
-    node.size = CGSize(
-      width: 71 * CGFloat(scale) * spriteScale,
-      height: 61 * CGFloat(scale) * spriteScale
-    )
+    node.size = GameplayArtworkMetrics(sceneSize: size).pumpkinSize(radiusScale: CGFloat(scale))
   }
 
   private func renderAuthoritativeState() {
