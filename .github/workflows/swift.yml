@@ -82,17 +82,21 @@ jobs:
         working-directory: Platforms/Web
     steps:
       - uses: actions/checkout@v4
-      - uses: swiftwasm/setup-swiftwasm@v2
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
           cache-dependency-path: Platforms/Web/package-lock.json
+      - name: Install official Swift WebAssembly SDK
+        run: >-
+          swift sdk install
+          https://download.swift.org/swift-6.3.3-release/wasm-sdk/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE_wasm.artifactbundle.tar.gz
+          --checksum cabfa08b73bb8ac783927ecd15fa386e99d0c139c5f232445067bcf58379cae7
       - name: Install Wasm optimizer
         run: sudo apt-get update && sudo apt-get install -y binaryen
       - name: Build optimized HTML5 release
         env:
-          SWIFT_WASM_SDK: wasm32-unknown-wasi
+          SWIFT_WASM_SDK: swift-6.3.3-RELEASE_wasm
         run: ./Scripts/build.sh
       - name: Audit web dependencies
         run: npm audit --audit-level=low
