@@ -171,6 +171,7 @@ struct SettingsView: View {
             .buttonStyle(RaidSecondaryButtonStyle())
         }
         .font(RaidTypography.body)
+        .toggleStyle(SkullToggleStyle())
         .padding(28)
         .foregroundStyle(.white)
       }
@@ -340,9 +341,9 @@ struct ModeSelectionView: View {
         Spacer(minLength: 0)
         HStack(spacing: 8) {
           Text("Play")
-          BundledImage(name: "button-start")
+          BundledImage(name: "button-arrow")
             .scaledToFit()
-            .frame(width: 28, height: 28)
+            .frame(width: 34, height: 34)
         }
         .font(.subheadline.weight(.bold))
         .foregroundStyle(.orange)
@@ -782,9 +783,9 @@ struct GameOverView: View {
             model.beginGame(mode: summary.mode)
           } label: {
             HStack(spacing: 10) {
-              BundledImage(name: "button-start")
+              BundledImage(name: "button-arrow")
                 .scaledToFit()
-                .frame(width: 30, height: 30)
+                .frame(width: 36, height: 36)
               Text("Play again")
             }
           }

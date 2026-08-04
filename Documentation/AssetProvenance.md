@@ -12,6 +12,8 @@ large and contains unrelated themes.
 | `splash-backdrop-tablet.png` | Theme 1 home PSD, `back` layer | Text-free layer export, edge cleanup, lossless PNG |
 | `gameover-backdrop-tablet.png` | Theme 1 leaderboard PSD, `back` layer | Score-panel-free layer export, transparent pasteboard crop, lossless PNG |
 | `leaderboard-panel.png` | Theme 1 leaderboard PSD, empty panel layer | Direct lossless layer export for live localized scores and asset-backed controls |
+| `skull-toggle-on.png`, `skull-toggle-off.png` | Theme 1 settings screen runtime masters | Direct owned iPad exports matching the paired skull controls in `640X960_Setting.psd` |
+| `button-arrow.png`, `button-arrow-pressed.png` | Theme 1 start-button runtime masters | Lossless transparent-canvas trim so the painted arrow can be optically centered and scaled |
 | `background-wide.jpg` | Theme 1 game background | Existing owned wide export copied for browser parity |
 | `phantom.png` | Theme 1 character art | Existing transparent runtime export |
 | `pumpkin1.png`–`pumpkin3.png` | Theme 1 pumpkin animation | Existing transparent animation frames |

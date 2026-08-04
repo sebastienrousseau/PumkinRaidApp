@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Increase semantic type sizes, rebuild controls with responsive pumpkin and sweet
+  artwork, tightly center the original painted moon arrow, and reproduce the owned
+  settings PSD's paired white/red skull toggles.
 - Replace the flattened duplicate game-over scoreboard with separate owned backdrop
   and empty-panel layers; use original normal/pressed artwork for arrows and asset-led
   primary, secondary, Guide, mode, and replay controls.

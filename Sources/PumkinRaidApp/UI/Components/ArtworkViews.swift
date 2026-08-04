@@ -36,12 +36,12 @@ enum RaidTheme {
 
 enum RaidTypography {
   static let screenTitle = Font.system(.largeTitle, design: .rounded, weight: .black)
-  static let sectionTitle = Font.system(.headline, design: .rounded, weight: .black)
-  static let cardTitle = Font.system(.title3, design: .rounded, weight: .black)
-  static let body = Font.system(.body, design: .rounded, weight: .medium)
-  static let support = Font.system(.subheadline, design: .rounded, weight: .semibold)
-  static let caption = Font.system(.caption, design: .rounded, weight: .semibold)
-  static let action = Font.system(.headline, design: .rounded, weight: .black)
+  static let sectionTitle = Font.system(.title3, design: .rounded, weight: .black)
+  static let cardTitle = Font.system(.title2, design: .rounded, weight: .black)
+  static let body = Font.system(.title3, design: .rounded, weight: .medium)
+  static let support = Font.system(.body, design: .rounded, weight: .semibold)
+  static let caption = Font.system(.subheadline, design: .rounded, weight: .semibold)
+  static let action = Font.system(.title3, design: .rounded, weight: .black)
 }
 
 enum RaidMetrics {
@@ -126,39 +126,98 @@ struct RaidPrimaryButtonStyle: ButtonStyle {
   var tint = RaidTheme.orange
 
   func makeBody(configuration: Configuration) -> some View {
-    configuration.label
-      .font(RaidTypography.action)
-      .foregroundStyle(.white)
-      .frame(minHeight: RaidMetrics.controlHeight)
-      .padding(.horizontal, 20)
-      .background(
-        BundledImage(name: "leaderboard-panel")
-          .scaledToFill()
-          .opacity(configuration.isPressed ? 0.72 : 0.94)
-          .overlay(tint.opacity(configuration.isPressed ? 0.28 : 0.16))
-          .clipShape(Capsule())
-      )
-      .overlay(Capsule().stroke(tint.opacity(0.92), lineWidth: 2))
-      .scaleEffect(configuration.isPressed ? 0.97 : 1)
-      .shadow(color: tint.opacity(0.32), radius: 10, y: 5)
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 10) {
+        pumpkinButtonArt
+        configuration.label
+        sweetButtonArt
+      }
+      HStack(spacing: 9) {
+        pumpkinButtonArt
+        configuration.label
+      }
+      configuration.label
+    }
+    .font(RaidTypography.action)
+    .foregroundStyle(.white)
+    .lineLimit(1)
+    .minimumScaleFactor(0.82)
+    .frame(minHeight: 58)
+    .padding(.horizontal, 18)
+    .background(
+      BundledImage(name: "leaderboard-panel")
+        .scaledToFill()
+        .opacity(configuration.isPressed ? 0.72 : 0.94)
+        .overlay(tint.opacity(configuration.isPressed ? 0.28 : 0.16))
+        .clipShape(Capsule())
+    )
+    .overlay(Capsule().stroke(tint.opacity(0.92), lineWidth: 2))
+    .scaleEffect(configuration.isPressed ? 0.97 : 1)
+    .shadow(color: tint.opacity(0.42), radius: 12, y: 6)
+  }
+
+  private var pumpkinButtonArt: some View {
+    BundledImage(name: "setting_started_button")
+      .scaledToFit()
+      .frame(width: 42, height: 42)
+  }
+
+  private var sweetButtonArt: some View {
+    BundledImage(name: "sweet1")
+      .scaledToFit()
+      .frame(width: 28, height: 28)
   }
 }
 
 struct RaidSecondaryButtonStyle: ButtonStyle {
   func makeBody(configuration: Configuration) -> some View {
-    configuration.label
-      .font(RaidTypography.support)
-      .foregroundStyle(.white)
-      .frame(minHeight: RaidMetrics.controlHeight)
-      .padding(.horizontal, 18)
-      .background(
-        BundledImage(name: "leaderboard-panel")
-          .scaledToFill()
-          .opacity(configuration.isPressed ? 0.82 : 0.7)
-          .clipShape(Capsule())
-      )
-      .overlay(Capsule().stroke(RaidTheme.orange.opacity(0.72), lineWidth: 1))
-      .scaleEffect(configuration.isPressed ? 0.98 : 1)
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 9) {
+        BundledImage(name: "sweet1")
+          .scaledToFit()
+          .frame(width: 26, height: 26)
+        configuration.label
+      }
+      configuration.label
+    }
+    .font(RaidTypography.support)
+    .foregroundStyle(.white)
+    .lineLimit(1)
+    .minimumScaleFactor(0.82)
+    .frame(minHeight: 52)
+    .padding(.horizontal, 18)
+    .background(
+      BundledImage(name: "leaderboard-panel")
+        .scaledToFill()
+        .opacity(configuration.isPressed ? 0.82 : 0.7)
+        .clipShape(Capsule())
+    )
+    .overlay(Capsule().stroke(RaidTheme.orange.opacity(0.72), lineWidth: 1))
+    .scaleEffect(configuration.isPressed ? 0.98 : 1)
+  }
+}
+
+struct SkullToggleStyle: ToggleStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    HStack(spacing: 18) {
+      configuration.label
+        .font(RaidTypography.body)
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, alignment: .leading)
+      Button {
+        configuration.isOn.toggle()
+      } label: {
+        BundledImage(name: configuration.isOn ? "skull-toggle-on" : "skull-toggle-off")
+          .scaledToFit()
+          .frame(width: 116, height: 60)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(configuration.isOn ? "Turn off" : "Turn on")
+      .accessibilityValue(configuration.isOn ? "On" : "Off")
+    }
+    .frame(minHeight: 66)
+    .contentShape(Rectangle())
   }
 }
 
@@ -183,9 +242,9 @@ private struct MoonArtworkButtonStyle: ButtonStyle {
         .fill(.black.opacity(0.08))
         .frame(width: size * 0.18)
         .offset(x: -size * 0.18, y: -size * 0.16)
-      BundledImage(name: configuration.isPressed ? "button-start-pressed" : "button-start")
+      BundledImage(name: configuration.isPressed ? "button-arrow-pressed" : "button-arrow")
         .scaledToFit()
-        .frame(width: size * 0.64, height: size * 0.64)
+        .frame(width: size * 0.72, height: size * 0.72)
     }
     .frame(width: size, height: size)
     .contentShape(Circle())
