@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Toolchain
@@ -29,6 +29,8 @@ jobs:
         run: swift format lint --strict --recursive Sources Tests
       - name: Validate privacy manifest
         run: plutil -lint Sources/PumkinRaidApp/Resources/PrivacyInfo.xcprivacy
+      - name: Validate localization parity
+        run: ./Scripts/validate-localizations.sh
       - name: Compile iOS host
         run: |
           IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
@@ -39,6 +41,32 @@ jobs:
           TVOS_SDK="$(xcrun --sdk appletvos --show-sdk-path)"
           swift build --scratch-path .build/tvos \
             --triple arm64-apple-tvos17.0 --sdk "$TVOS_SDK"
+      - name: Generate distribution project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build unsigned iOS/iPadOS Release app
+        run: |
+          xcodebuild -quiet -project PumkinRaidApp.xcodeproj \
+            -scheme PumkinRaidApp-iOS -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath .build/xcode-ios \
+            -clonedSourcePackagesDirPath .build/xcode-packages \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Build unsigned tvOS Release app
+        run: |
+          xcodebuild -quiet -project PumkinRaidApp.xcodeproj \
+            -scheme PumkinRaidApp-tvOS -configuration Release \
+            -destination 'generic/platform=tvOS' \
+            -derivedDataPath .build/xcode-tvos \
+            -clonedSourcePackagesDirPath .build/xcode-packages \
+            CODE_SIGNING_ALLOWED=NO build
+      - name: Build unsigned macOS Release app
+        run: |
+          xcodebuild -quiet -project PumkinRaidApp.xcodeproj \
+            -scheme PumkinRaidApp-macOS -configuration Release \
+            -destination 'platform=macOS' \
+            -derivedDataPath .build/xcode-macos \
+            -clonedSourcePackagesDirPath .build/xcode-packages \
+            CODE_SIGNING_ALLOWED=NO build
       - name: Verify pure Swift sources
         run: |
           if find Sources -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.m' -o -name '*.mm' \) | grep -q .; then
@@ -66,10 +94,9 @@ jobs:
         env:
           SWIFT_WASM_SDK: wasm32-unknown-wasi
         run: ./Scripts/build.sh
-      - name: Chromium input smoke test
+      - name: Install browser test engines
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Cross-browser input smoke test
         run: |
           npx vite preview --host 127.0.0.1 --port 8765 &
-          google-chrome --headless=new --disable-gpu --no-first-run \
-            --user-data-dir=/tmp/pumkin-chrome-ci --remote-debugging-port=9222 \
-            http://127.0.0.1:8765/index.html &
-          node Tests/browser-smoke.mjs
+          npm run test:browsers

@@ -17,6 +17,7 @@ import SpriteKit
 /// spawn, or resolve collisions independently.
 @MainActor
 final class GameScene: SKScene {
+  static let maximumTransientEffects = 96
   var gameOverHandler: ((RunSummary) -> Void)?
   var pauseChangedHandler: ((Bool) -> Void)?
   var authoritativeState: GameState { simulation.state }
@@ -24,6 +25,7 @@ final class GameScene: SKScene {
   private let settings: GameSettings
   private var simulation: GameSimulation
   private let world = SKNode()
+  private let effectsLayer = SKNode()
   private let phantom = SKSpriteNode(texture: AssetLoader.texture("phantom"))
   private let scoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
   private let livesLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
@@ -76,13 +78,7 @@ final class GameScene: SKScene {
   required init?(coder: NSCoder) { nil }
 
   override func didMove(to view: SKView) {
-    guard children.isEmpty else { return }
-    addChild(world)
-    buildBackground()
-    buildHUD()
-    buildPhantom()
-    syncNodesWithSimulation()
-    renderAuthoritativeState()
+    installSceneGraph()
     startMotionUpdates()
     AudioManager.shared.play("creaking_door", enabled: settings.effectsEnabled)
     #if os(macOS)
@@ -91,6 +87,17 @@ final class GameScene: SKScene {
         NSApp.activate(ignoringOtherApps: true)
       }
     #endif
+  }
+
+  func installSceneGraph() {
+    guard children.isEmpty else { return }
+    addChild(world)
+    addChild(effectsLayer)
+    buildBackground()
+    buildHUD()
+    buildPhantom()
+    syncNodesWithSimulation()
+    renderAuthoritativeState()
   }
 
   override func didChangeSize(_ oldSize: CGSize) {
@@ -155,6 +162,7 @@ final class GameScene: SKScene {
   }
 
   private func buildHUD() {
+    hudBackground.name = "hud-background"
     hudBackground.fillColor = SKColor.black.withAlphaComponent(shouldUseHighContrast ? 0.92 : 0.68)
     hudBackground.strokeColor = SKColor.orange.withAlphaComponent(shouldUseHighContrast ? 1 : 0.75)
     hudBackground.lineWidth = 1.5
@@ -167,6 +175,10 @@ final class GameScene: SKScene {
       label.zPosition = 20
       addChild(label)
     }
+    scoreLabel.name = "hud-score"
+    livesLabel.name = "hud-lives"
+    slicesLabel.name = "hud-dashes"
+    boomsLabel.name = "hud-shrieks"
     statusLabel.fontColor = .white
     statusLabel.horizontalAlignmentMode = .center
     statusLabel.verticalAlignmentMode = .center
@@ -390,7 +402,7 @@ final class GameScene: SKScene {
     label.verticalAlignmentMode = .center
     label.position = position
     label.zPosition = 30
-    addChild(label)
+    addTransientEffect(label)
     if shouldReduceMotion {
       label.run(
         .sequence([.wait(forDuration: 0.45), .fadeOut(withDuration: 0.18), .removeFromParent()]))
@@ -412,7 +424,7 @@ final class GameScene: SKScene {
     trail.glowWidth = 7
     trail.lineWidth = 4
     trail.zPosition = 40
-    addChild(trail)
+    addTransientEffect(trail)
     trail.run(.sequence([.fadeOut(withDuration: 0.22), .removeFromParent()]))
   }
 
@@ -424,7 +436,7 @@ final class GameScene: SKScene {
       particle.strokeColor = .clear
       particle.position = point
       particle.zPosition = 15
-      addChild(particle)
+      addTransientEffect(particle)
       let angle = CGFloat((identity * 31 + index * 137) % 360) * .pi / 180
       let speed = CGFloat(55 + (identity * 17 + index * 23) % 70)
       particle.run(
@@ -436,6 +448,14 @@ final class GameScene: SKScene {
           .removeFromParent(),
         ]))
     }
+  }
+
+  private func addTransientEffect(_ node: SKNode) {
+    while effectsLayer.children.count >= Self.maximumTransientEffects {
+      effectsLayer.children.first?.removeFromParent()
+    }
+    effectsLayer.addChild(node)
+    assert(effectsLayer.children.count <= Self.maximumTransientEffects)
   }
 
   private func continuousInputFrame() -> InputFrame {

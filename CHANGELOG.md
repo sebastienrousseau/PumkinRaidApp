@@ -10,3 +10,7 @@
 - Add a privacy manifest and core interface translations for nine languages.
 - Add iOS and tvOS SDK compilation gates plus strict formatting and coverage in CI.
 - Add an optimized Swift 6.3.3 WebAssembly/Vite release and Chromium input smoke test.
+- Bound transient SpriteKit effects and audio voices, and document runtime budgets.
+- Add packaged-resource tests and a nine-language key-parity gate.
+- Exercise Wasm load, start, keyboard, and pointer paths in Chromium, Firefox, and WebKit.
+- Add generated iOS/iPadOS, tvOS, and macOS app targets with release entitlements.

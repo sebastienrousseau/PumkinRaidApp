@@ -4,6 +4,7 @@ import OSLog
 @MainActor
 final class AudioManager {
   static let shared = AudioManager()
+  static let maximumEffectVoices = 12
 
   private let logger = Logger(subsystem: "com.sebastienrousseau.PumkinRaidApp", category: "Audio")
   private var musicPlayer: AVAudioPlayer?
@@ -83,6 +84,10 @@ final class AudioManager {
         return
       }
       effectPlayers.removeAll { !$0.isPlaying }
+      if effectPlayers.count >= Self.maximumEffectVoices {
+        effectPlayers[0].stop()
+        effectPlayers.removeFirst()
+      }
       variationCounter &+= 1
       player.enableRate = true
       player.rate = [0.96, 1, 1.04][variationCounter % 3]
@@ -93,6 +98,7 @@ final class AudioManager {
         return
       }
       effectPlayers.append(player)
+      assert(effectPlayers.count <= Self.maximumEffectVoices)
     } catch {
       logger.error(
         "Failed to load effect \(name, privacy: .public): \(error.localizedDescription, privacy: .public)"

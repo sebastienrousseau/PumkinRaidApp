@@ -2,10 +2,14 @@
   "name": "pumkin-raid-web-host",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test:browsers": "node Tests/cross-browser-smoke.mjs"
+  },
   "dependencies": {
     "pumkin-raid-wasm": "file:.build/plugins/PackageToJS/outputs/Package"
   },
   "devDependencies": {
+    "playwright": "1.62.1",
     "vite": "7.1.1"
   }
 }

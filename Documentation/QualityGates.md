@@ -16,3 +16,21 @@ recorded. Compilation alone is not a green gate.
 | Social | Authenticated/fallback leaderboards and replay-backed score validation |
 | Release | Privacy manifest, archive validation, store assets, and clean CI matrix |
 
+## Current repository evidence
+
+| Area | Automated status | Evidence |
+| --- | --- | --- |
+| Simulation | Green | Deterministic replay digests, fixed 60 Hz stepping, 216,000-tick soak |
+| Input | Green | Semantic keyboard, pointer, touch, remote, and controller routing tests |
+| Gameplay | Green | 100,000 seeded waves validated for safe, bounded composition |
+| UX | Green (automated) | Five-resolution HUD layout matrix and adaptive safe-area layout |
+| Performance | Green (automated) | Bounded transient nodes/audio voices, signposts, and MetricKit capture |
+| Apple | Green (unsigned) | Release builds for iOS/iPadOS, tvOS, and macOS |
+| Web | Green | Optimized Wasm exercised in Chromium, Firefox, and WebKit |
+| Persistence | Green | Versioned migration, corrupt-save recovery, and offline local boards |
+| Social | Green (code) | Optional Game Center with authenticated submission and local fallback |
+| Release | Green (repository) | CI, localization parity, privacy manifest, pure-Swift enforcement |
+
+Human UX studies, signed archives, minimum-device profiling, Game Center/App Store
+records, and final store artwork remain external release gates. They may only be marked
+green after their evidence is captured; see `Release.md`.

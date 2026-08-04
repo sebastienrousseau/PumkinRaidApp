@@ -3,6 +3,7 @@
 DerivedData/
 *.xcuserstate
 xcuserdata/
+*.xcodeproj/
 .DS_Store
 Platforms/Web/dist/
 Platforms/Web/node_modules/

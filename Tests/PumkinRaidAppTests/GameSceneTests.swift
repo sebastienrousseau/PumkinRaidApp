@@ -1,4 +1,5 @@
 import GameEngineLib
+import SpriteKit
 import XCTest
 
 @testable import PumkinRaidApp
@@ -18,6 +19,32 @@ final class GameSceneTests: XCTestCase {
     let before = scene.authoritativeState
     scene.size = CGSize(width: 1_920, height: 1_080)
     XCTAssertEqual(scene.authoritativeState, before)
+  }
+
+  func testHUDRemainsInsetAndLabelsCenteredAcrossResolutionMatrix() throws {
+    let sizes = [
+      CGSize(width: 320, height: 568),
+      CGSize(width: 390, height: 844),
+      CGSize(width: 1_024, height: 768),
+      CGSize(width: 1_920, height: 1_080),
+      CGSize(width: 3_440, height: 1_440),
+    ]
+    for size in sizes {
+      let scene = GameScene(settings: silentSettings, seed: 7)
+      scene.size = size
+      scene.installSceneGraph()
+      let panel = try XCTUnwrap(scene.childNode(withName: "hud-background"))
+      XCTAssertGreaterThanOrEqual(panel.frame.minX, 16, "HUD clips at \(size)")
+      XCTAssertLessThanOrEqual(panel.frame.maxX, size.width - 16, "HUD clips at \(size)")
+      XCTAssertLessThanOrEqual(panel.frame.maxY, size.height - 20, "HUD too high at \(size)")
+
+      for name in ["hud-score", "hud-lives", "hud-dashes", "hud-shrieks"] {
+        let label = try XCTUnwrap(scene.childNode(withName: name) as? SKLabelNode)
+        XCTAssertEqual(label.horizontalAlignmentMode, .center)
+        XCTAssertEqual(label.verticalAlignmentMode, .center)
+        XCTAssertTrue(panel.frame.insetBy(dx: -2, dy: -2).contains(label.position))
+      }
+    }
   }
 
   func testProgrammaticMovementRoutesThroughSimulation() {
