@@ -21,6 +21,8 @@ final class ResourceTests: XCTestCase {
       ("button-info", "png"),
       ("skull-toggle-on", "png"),
       ("skull-toggle-off", "png"),
+      ("raid-primary-button-v2", "png"),
+      ("raid-secondary-button-v2", "png"),
       ("phantom", "png"),
       ("pumpkin1", "png"),
       ("pumpkin2", "png"),
@@ -35,6 +37,15 @@ final class ResourceTests: XCTestCase {
       XCTAssertNotNil(
         Bundle.pumkinRaidResources.url(forResource: name, withExtension: fileExtension),
         "Missing required resource: \(name).\(fileExtension)"
+      )
+    }
+  }
+
+  func testLicensedDisplayFontsArePackaged() {
+    for name in ["GapstownAHBold", "Creepsville"] {
+      XCTAssertNotNil(
+        Bundle.pumkinRaidResources.url(forResource: name, withExtension: "ttf"),
+        "Missing required display font: \(name).ttf"
       )
     }
   }

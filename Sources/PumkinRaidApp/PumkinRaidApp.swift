@@ -5,6 +5,7 @@
   enum PumkinRaidApp {
     @MainActor
     static func main() {
+      RaidFontRegistrar.register()
       PerformanceMonitor.shared.start()
       let application = PumkinRaidApplication.shared as! PumkinRaidApplication
       let delegate = MacAppDelegate()
@@ -21,6 +22,7 @@
     @StateObject private var model = AppModel()
 
     init() {
+      RaidFontRegistrar.register()
       PerformanceMonitor.shared.start()
     }
 

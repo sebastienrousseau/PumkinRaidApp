@@ -39,14 +39,9 @@ struct StartView: View {
         Button {
           model.showSettings()
         } label: {
-          HStack(spacing: 8) {
-            BundledImage(name: "button-info")
-              .scaledToFit()
-              .frame(width: 28, height: 28)
-            Text("Guide")
-          }
+          RaidArtworkIconLabel(artName: "button-info", title: "Guide", size: 52)
         }
-        .buttonStyle(RaidSecondaryButtonStyle())
+        .buttonStyle(RaidArtworkIconButtonStyle())
         .accessibilityLabel("Settings and game guide")
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         .padding(.top, max(14, proxy.safeAreaInsets.top))
@@ -132,7 +127,7 @@ struct SettingsView: View {
           Toggle("Assist mode (slower raid)", isOn: $model.settings.assistModeEnabled)
           VStack(alignment: .leading, spacing: 6) {
             Text("Input sensitivity")
-              .font(.subheadline.weight(.semibold))
+              .font(RaidTypography.support)
             #if os(tvOS)
               HStack(spacing: 16) {
                 Button("Less") {
@@ -154,7 +149,7 @@ struct SettingsView: View {
               Slider(value: $model.settings.inputSensitivity, in: 0.5...1.5, step: 0.1)
             #endif
             Text("\(model.settings.inputSensitivity, specifier: "%.1fx")")
-              .font(.caption.monospacedDigit())
+              .font(RaidTypography.caption.monospacedDigit())
               .foregroundStyle(.white.opacity(0.7))
           }
           Divider()
@@ -164,7 +159,7 @@ struct SettingsView: View {
             Label("Swipe or press Space to dash through pumpkins", systemImage: "scribble.variable")
             Label("Collect sweets and build your high score", systemImage: "star.fill")
           }
-          .font(.callout.weight(.semibold))
+          .font(RaidTypography.support)
           Button("Choose a mode") { model.showModeSelection() }
             .buttonStyle(RaidPrimaryButtonStyle())
           Button("Back") { model.showStart() }
@@ -175,9 +170,13 @@ struct SettingsView: View {
         .padding(28)
         .foregroundStyle(.white)
       }
-      .frame(maxWidth: 520)
-      .background(.black.opacity(0.62), in: RoundedRectangle(cornerRadius: 24))
-      .padding(24)
+      .frame(maxWidth: 720)
+      .background(.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 28))
+      .overlay(
+        RoundedRectangle(cornerRadius: 28)
+          .stroke(RaidTheme.orange.opacity(0.72), lineWidth: 1.5)
+      )
+      .padding(16)
     }
     .ignoresSafeArea()
   }
@@ -190,7 +189,7 @@ struct ModeSelectionView: View {
   @State private var challengeError = false
 
   private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
-  private let actionColumns = [GridItem(.adaptive(minimum: 140), spacing: 12)]
+  private let actionColumns = [GridItem(.adaptive(minimum: 320), spacing: 16)]
 
   var body: some View {
     ZStack {
@@ -207,25 +206,21 @@ struct ModeSelectionView: View {
               model.showPlayerHub(.profile)
             } label: {
               Label("Level \(model.progress.level)", systemImage: "person.crop.circle.fill")
-                .frame(maxWidth: .infinity)
             }
             Button {
               model.showPlayerHub(.missions)
             } label: {
               Label("Missions", systemImage: "checklist")
-                .frame(maxWidth: .infinity)
             }
             Button {
               model.showPlayerHub(.collection)
             } label: {
               Label("\(model.progress.ectoplasm)", systemImage: "sparkles")
-                .frame(maxWidth: .infinity)
             }
             Button {
               GameCenterService.shared.showDashboard()
             } label: {
               Label("Game Center", systemImage: "person.2.fill")
-                .frame(maxWidth: .infinity)
             }
           }
           .buttonStyle(RaidSecondaryButtonStyle())
@@ -345,7 +340,7 @@ struct ModeSelectionView: View {
             .scaledToFit()
             .frame(width: 34, height: 34)
         }
-        .font(.subheadline.weight(.bold))
+        .font(RaidTypography.action)
         .foregroundStyle(.orange)
       }
       .frame(maxWidth: .infinity, minHeight: 150, alignment: .leading)
@@ -412,11 +407,11 @@ struct PlayerHubView: View {
         .font(.system(size: 64))
         .foregroundStyle(.cyan)
       Text("LEVEL \(model.progress.level)")
-        .font(.title.weight(.black))
+        .font(RaidTypography.screenTitle)
       ProgressView(value: Double(model.progress.experienceWithinLevel), total: 500)
         .tint(.orange)
       Text("\(model.progress.experienceWithinLevel) / 500 XP")
-        .font(.caption.monospacedDigit())
+        .font(RaidTypography.caption.monospacedDigit())
       HStack(spacing: 24) {
         lodgeMetric("Raids", model.progress.totalRuns)
         lodgeMetric("Ectoplasm", model.progress.ectoplasm)
@@ -444,7 +439,7 @@ struct PlayerHubView: View {
           HStack {
             Image(systemName: status.isClaimed ? "checkmark.seal.fill" : "circle.dashed")
               .foregroundStyle(status.isClaimed ? .green : .orange)
-            Text(mission.title).font(.headline)
+            Text(mission.title).font(RaidTypography.sectionTitle)
             Spacer()
             Text("+\(mission.rewardEctoplasm)").foregroundStyle(.cyan)
           }
@@ -453,7 +448,7 @@ struct PlayerHubView: View {
           )
           .tint(status.isClaimed ? .green : .orange)
           Text("\(min(status.progress, mission.target)) / \(mission.target)")
-            .font(.caption.monospacedDigit())
+            .font(RaidTypography.caption.monospacedDigit())
             .foregroundStyle(.white.opacity(0.68))
         }
         .padding(15)
@@ -478,12 +473,12 @@ struct PlayerHubView: View {
             Image(systemName: unlocked ? "sparkles" : "lock.fill")
               .font(.system(size: 30, weight: .bold))
               .foregroundStyle(unlocked ? .cyan : .white.opacity(0.4))
-            Text(item.name).font(.headline)
+            Text(item.name).font(RaidTypography.sectionTitle)
             Text(
               equipped
                 ? "EQUIPPED" : unlocked ? "Tap to equip" : "Unlock at level \(item.unlockLevel)"
             )
-            .font(.caption)
+            .font(RaidTypography.caption)
             .foregroundStyle(equipped ? .orange : .white.opacity(0.62))
           }
           .frame(maxWidth: .infinity, minHeight: 125)
@@ -508,8 +503,8 @@ struct PlayerHubView: View {
 
   private func lodgeMetric(_ title: String, _ value: Int) -> some View {
     VStack {
-      Text("\(value)").font(.title3.bold()).monospacedDigit()
-      Text(title).font(.caption).foregroundStyle(.white.opacity(0.65))
+      Text("\(value)").font(RaidTypography.cardTitle).monospacedDigit()
+      Text(title).font(RaidTypography.caption).foregroundStyle(.white.opacity(0.72))
     }
   }
 
@@ -626,7 +621,7 @@ struct GameView: View {
           Text("RAID PAUSED")
             .font(RaidTypography.screenTitle)
           Text("Your run is safe. Continue when you are ready.")
-            .font(.subheadline)
+            .font(RaidTypography.support)
             .foregroundStyle(.white.opacity(0.75))
             .multilineTextAlignment(.center)
           #if os(tvOS)
@@ -698,11 +693,13 @@ struct GameOverView: View {
   var body: some View {
     GeometryReader { proxy in
       let isLandscape = proxy.size.width / max(1, proxy.size.height) >= 1.15
-      let cardWidth = min(560, max(300, proxy.size.width - 48))
-      let visibleEntries = Array(leaderboard.entries.prefix(proxy.size.height < 620 ? 3 : 5))
-      let rowHeight: CGFloat = proxy.size.height < 620 ? 40 : 48
-      let cardHeight = 188 + rowHeight * CGFloat(max(1, visibleEntries.count))
-      let centerY = proxy.size.height / 2
+      let cardWidth =
+        isLandscape
+        ? min(520, max(340, proxy.size.width * 0.5))
+        : min(560, max(300, proxy.size.width - 48))
+      let entryLimit = proxy.size.height < 760 ? 2 : proxy.size.height < 980 ? 3 : 5
+      let visibleEntries = Array(leaderboard.entries.prefix(entryLimit))
+      let rowHeight: CGFloat = proxy.size.height < 760 ? 44 : 54
       ZStack {
         gameOverBackdrop(isLandscape: isLandscape, size: proxy.size)
         if isLandscape {
@@ -710,110 +707,136 @@ struct GameOverView: View {
             .font(RaidTypography.screenTitle)
             .foregroundStyle(.orange)
             .shadow(color: .black.opacity(0.75), radius: 4, y: 2)
-            .position(x: proxy.size.width / 2, y: max(58, centerY - cardHeight / 2 - 52))
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .padding(.top, 12)
         }
 
-        VStack(spacing: 0) {
-          VStack(spacing: 5) {
-            Text("\(summary.score)")
-              .font(.system(.largeTitle, design: .rounded, weight: .black))
-              .foregroundStyle(.white)
-              .monospacedDigit()
-            HStack(spacing: 10) {
-              resultMetric("Smashed", summary.statistics.destroyed)
-              resultMetric("Near misses", summary.statistics.nearMisses)
-              resultMetric("Best combo", summary.statistics.bestCombo)
+        ScrollView {
+          ViewThatFits(in: .horizontal) {
+            HStack(spacing: 24) {
+              leaderboardCard(
+                width: cardWidth,
+                rowHeight: rowHeight,
+                visibleEntries: visibleEntries
+              )
+              gameOverActions
             }
-            Text(
-              "+\(progression.experienceAwarded) XP  •  +\(progression.ectoplasmAwarded) ectoplasm"
-            )
-            .font(.caption.weight(.bold))
-            .foregroundStyle(.cyan)
-            if summary.assisted {
-              Text("ASSISTED RUN")
-                .font(.caption2.weight(.black))
-                .foregroundStyle(.yellow)
-            } else if progression.isNewBest {
-              Text("NEW PERSONAL BEST")
-                .font(.caption2.weight(.black))
-                .foregroundStyle(.yellow)
+            VStack(spacing: 18) {
+              leaderboardCard(
+                width: cardWidth,
+                rowHeight: rowHeight,
+                visibleEntries: visibleEntries
+              )
+              gameOverActions
             }
           }
-          .frame(height: 112)
-
-          HStack {
-            Label("\(modeTitle) LEADERBOARD", systemImage: "trophy.fill")
-            Spacer()
-            Text("BEST  \(leaderboard.bestScore)")
-              .monospacedDigit()
-          }
-          .font(.subheadline.weight(.heavy))
-          .foregroundStyle(.orange)
-          .frame(height: 50)
-
-          Divider().overlay(.white.opacity(0.25))
-
-          if visibleEntries.isEmpty {
-            Text("Complete a run to claim the first place.")
-              .foregroundStyle(.white.opacity(0.8))
-              .frame(height: rowHeight)
-          } else {
-            ForEach(Array(visibleEntries.enumerated()), id: \.element.id) { index, entry in
-              leaderboardRow(rank: index + 1, entry: entry)
-                .frame(height: rowHeight)
-            }
-          }
+          .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .center)
+          .padding(.horizontal, 24)
+          .padding(.top, isLandscape ? 82 : max(170, proxy.size.height * 0.19))
+          .padding(.bottom, 24)
         }
-        .padding(.horizontal, min(30, cardWidth * 0.07))
-        .padding(.vertical, 12)
-        .frame(width: cardWidth, height: cardHeight)
-        .background(
-          BundledImage(name: "leaderboard-panel")
-            .scaledToFill()
-            .clipShape(RoundedRectangle(cornerRadius: 20))
-        )
-        .overlay(
-          RoundedRectangle(cornerRadius: 20)
-            .stroke(.orange.opacity(0.9), lineWidth: 1.5)
-        )
-        .position(x: proxy.size.width / 2, y: centerY)
-
-        VStack(spacing: 14) {
-          Button {
-            model.beginGame(mode: summary.mode)
-          } label: {
-            HStack(spacing: 10) {
-              BundledImage(name: "button-arrow")
-                .scaledToFit()
-                .frame(width: 36, height: 36)
-              Text("Play again")
-            }
-          }
-          .buttonStyle(RaidPrimaryButtonStyle())
-          .accessibilityLabel("Play again")
-
-          HStack(spacing: 12) {
-            Button("Home") { model.showStart() }
-              .buttonStyle(RaidSecondaryButtonStyle())
-            #if !os(tvOS)
-              ShareLink(
-                item: model.lastChallenge?.shareText
-                  ?? "I scored \(summary.score) points in Pumkin Raid!"
-              ) {
-                Label("Share", systemImage: "square.and.arrow.up")
-              }
-              .buttonStyle(RaidSecondaryButtonStyle())
-            #endif
-          }
-        }
-        .foregroundStyle(.white)
-        .position(
-          x: proxy.size.width / 2,
-          y: min(proxy.size.height - 70, centerY + cardHeight / 2 + 88)
-        )
+        .scrollIndicators(.hidden)
       }
     }
     .ignoresSafeArea()
+  }
+
+  private func leaderboardCard(
+    width: CGFloat,
+    rowHeight: CGFloat,
+    visibleEntries: [LeaderboardEntry]
+  ) -> some View {
+    VStack(spacing: 0) {
+      VStack(spacing: 5) {
+        Text("\(summary.score)")
+          .font(.custom("GapstownAHBold", size: 48, relativeTo: .largeTitle))
+          .foregroundStyle(.white)
+          .monospacedDigit()
+        HStack(spacing: 10) {
+          resultMetric("Smashed", summary.statistics.destroyed)
+          resultMetric("Near misses", summary.statistics.nearMisses)
+          resultMetric("Best combo", summary.statistics.bestCombo)
+        }
+        Text(
+          "+\(progression.experienceAwarded) XP  •  +\(progression.ectoplasmAwarded) ectoplasm"
+        )
+        .font(RaidTypography.support)
+        .foregroundStyle(.cyan)
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
+        if summary.assisted {
+          Text("ASSISTED RUN")
+            .font(RaidTypography.caption)
+            .foregroundStyle(.yellow)
+        } else if progression.isNewBest {
+          Text("NEW PERSONAL BEST")
+            .font(RaidTypography.caption)
+            .foregroundStyle(.yellow)
+        }
+      }
+      .frame(minHeight: 128)
+
+      HStack {
+        Label("\(modeTitle) LEADERBOARD", systemImage: "trophy.fill")
+        Spacer()
+        Text("BEST  \(leaderboard.bestScore)")
+          .monospacedDigit()
+      }
+      .font(RaidTypography.support)
+      .foregroundStyle(.orange)
+      .frame(height: 56)
+
+      Divider().overlay(.white.opacity(0.25))
+
+      if visibleEntries.isEmpty {
+        Text("Complete a run to claim the first place.")
+          .font(RaidTypography.support)
+          .foregroundStyle(.white.opacity(0.82))
+          .frame(height: rowHeight)
+      } else {
+        ForEach(Array(visibleEntries.enumerated()), id: \.element.id) { index, entry in
+          leaderboardRow(rank: index + 1, entry: entry)
+            .frame(height: rowHeight)
+        }
+      }
+    }
+    .padding(.horizontal, min(30, width * 0.07))
+    .padding(.vertical, 12)
+    .frame(width: width)
+    .background(
+      BundledImage(name: "leaderboard-panel")
+        .scaledToFill()
+        .clipShape(RoundedRectangle(cornerRadius: 20))
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 20)
+        .stroke(.orange.opacity(0.9), lineWidth: 1.5)
+    )
+  }
+
+  private var gameOverActions: some View {
+    VStack(spacing: 12) {
+      Button("Play again") { model.beginGame(mode: summary.mode) }
+        .buttonStyle(RaidPrimaryButtonStyle())
+      HStack(spacing: 18) {
+        Button {
+          model.showStart()
+        } label: {
+          RaidArtworkIconLabel(artName: "setting_started_button", title: "Home")
+        }
+        .buttonStyle(RaidArtworkIconButtonStyle())
+        #if !os(tvOS)
+          ShareLink(
+            item: model.lastChallenge?.shareText
+              ?? "I scored \(summary.score) points in Pumkin Raid!"
+          ) {
+            RaidArtworkIconLabel(artName: "sweet2", title: "Share")
+          }
+          .buttonStyle(RaidArtworkIconButtonStyle())
+        #endif
+      }
+    }
+    .foregroundStyle(.white)
   }
 
   @ViewBuilder
@@ -851,8 +874,12 @@ struct GameOverView: View {
 
   private func resultMetric(_ title: String, _ value: Int) -> some View {
     VStack(spacing: 1) {
-      Text("\(value)").font(.headline.monospacedDigit())
-      Text(title).font(.caption2).foregroundStyle(.white.opacity(0.65))
+      Text("\(value)").font(RaidTypography.sectionTitle.monospacedDigit())
+      Text(title)
+        .font(RaidTypography.caption)
+        .foregroundStyle(.white.opacity(0.72))
+        .lineLimit(1)
+        .minimumScaleFactor(0.75)
     }
     .frame(maxWidth: .infinity)
   }
@@ -872,7 +899,7 @@ struct GameOverView: View {
         Spacer()
       }
     }
-    .font(.headline.weight(entry.id == entryID ? .heavy : .semibold))
+    .font(RaidTypography.body.weight(entry.id == entryID ? .heavy : .semibold))
     .foregroundStyle(entry.id == entryID ? .orange : .white)
     .padding(.horizontal, 8)
     .background(

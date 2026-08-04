@@ -14,6 +14,9 @@ large and contains unrelated themes.
 | `leaderboard-panel.png` | Theme 1 leaderboard PSD, empty panel layer | Direct lossless layer export for live localized scores and asset-backed controls |
 | `skull-toggle-on.png`, `skull-toggle-off.png` | Theme 1 settings screen runtime masters | Direct owned iPad exports matching the paired skull controls in `640X960_Setting.psd` |
 | `button-arrow.png`, `button-arrow-pressed.png` | Theme 1 start-button runtime masters | Lossless transparent-canvas trim so the painted arrow can be optically centered and scaled |
+| `raid-primary-button-v2.png` | Theme 1 home, settings, leaderboard, and game references | AI-assisted text-free pumpkin/candy control derivation; flat-magenta matte removal; reviewed transparent downsample |
+| `raid-secondary-button-v2.png` | Theme 1 home, settings, leaderboard, and game references | AI-assisted text-free skull/peppermint control derivation; flat-magenta matte removal; reviewed transparent downsample |
+| `GapstownAHBold.ttf`, `Creepsville.ttf` | Theme 1 640×960 editable archive | Direct owned font masters, registered process-wide for accessible SwiftUI display typography |
 | `background-wide.jpg` | Theme 1 game background | Existing owned wide export copied for browser parity |
 | `phantom.png` | Theme 1 character art | Existing transparent runtime export |
 | `pumpkin1.png`–`pumpkin3.png` | Theme 1 pumpkin animation | Existing transparent animation frames |

@@ -35,13 +35,13 @@ enum RaidTheme {
 }
 
 enum RaidTypography {
-  static let screenTitle = Font.system(.largeTitle, design: .rounded, weight: .black)
-  static let sectionTitle = Font.system(.title3, design: .rounded, weight: .black)
-  static let cardTitle = Font.system(.title2, design: .rounded, weight: .black)
-  static let body = Font.system(.title3, design: .rounded, weight: .medium)
-  static let support = Font.system(.body, design: .rounded, weight: .semibold)
-  static let caption = Font.system(.subheadline, design: .rounded, weight: .semibold)
-  static let action = Font.system(.title3, design: .rounded, weight: .black)
+  static let screenTitle = Font.custom("Creepsville", size: 48, relativeTo: .largeTitle)
+  static let sectionTitle = Font.custom("GapstownAHBold", size: 28, relativeTo: .title2)
+  static let cardTitle = Font.custom("GapstownAHBold", size: 27, relativeTo: .title2)
+  static let body = Font.system(size: 20, weight: .medium, design: .rounded)
+  static let support = Font.system(size: 18, weight: .semibold, design: .rounded)
+  static let caption = Font.system(size: 16, weight: .semibold, design: .rounded)
+  static let action = Font.custom("GapstownAHBold", size: 25, relativeTo: .title3)
 }
 
 enum RaidMetrics {
@@ -51,7 +51,7 @@ enum RaidMetrics {
   static let contentPadding: CGFloat = 24
   static let cardRadius: CGFloat = 20
   static let panelRadius: CGFloat = 24
-  static let controlHeight: CGFloat = 48
+  static let controlHeight: CGFloat = 64
 }
 
 struct StartLayoutMetrics: Equatable {
@@ -85,8 +85,8 @@ struct RaidTitle: View {
       Text("PUMKIN")
       Text("RAID")
     }
-    .font(.system(size: compact ? 42 : 62, weight: .black, design: .rounded))
-    .tracking(-2)
+    .font(.custom("Creepsville", size: compact ? 48 : 72, relativeTo: .largeTitle))
+    .tracking(0.5)
     .foregroundStyle(
       LinearGradient(
         colors: [RaidTheme.amber, RaidTheme.orange],
@@ -123,77 +123,86 @@ struct RaidScreenHeading: View {
 }
 
 struct RaidPrimaryButtonStyle: ButtonStyle {
+  @Environment(\.isFocused) private var isFocused
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   var tint = RaidTheme.orange
 
   func makeBody(configuration: Configuration) -> some View {
-    ViewThatFits(in: .horizontal) {
-      HStack(spacing: 10) {
-        pumpkinButtonArt
-        configuration.label
-        sweetButtonArt
-      }
-      HStack(spacing: 9) {
-        pumpkinButtonArt
-        configuration.label
-      }
-      configuration.label
-    }
-    .font(RaidTypography.action)
-    .foregroundStyle(.white)
-    .lineLimit(1)
-    .minimumScaleFactor(0.82)
-    .frame(minHeight: 58)
-    .padding(.horizontal, 18)
-    .background(
-      BundledImage(name: "leaderboard-panel")
-        .scaledToFill()
-        .opacity(configuration.isPressed ? 0.72 : 0.94)
-        .overlay(tint.opacity(configuration.isPressed ? 0.28 : 0.16))
-        .clipShape(Capsule())
-    )
-    .overlay(Capsule().stroke(tint.opacity(0.92), lineWidth: 2))
-    .scaleEffect(configuration.isPressed ? 0.97 : 1)
-    .shadow(color: tint.opacity(0.42), radius: 12, y: 6)
-  }
-
-  private var pumpkinButtonArt: some View {
-    BundledImage(name: "setting_started_button")
-      .scaledToFit()
-      .frame(width: 42, height: 42)
-  }
-
-  private var sweetButtonArt: some View {
-    BundledImage(name: "sweet1")
-      .scaledToFit()
-      .frame(width: 28, height: 28)
+    configuration.label
+      .font(RaidTypography.action)
+      .foregroundStyle(.white)
+      .lineLimit(1)
+      .minimumScaleFactor(0.7)
+      .shadow(color: .black.opacity(0.9), radius: 2, y: 2)
+      .frame(minWidth: 180, minHeight: 72)
+      .padding(.horizontal, 72)
+      .background(
+        BundledImage(name: "raid-primary-button-v2")
+          .scaledToFit()
+          .brightness(configuration.isPressed ? -0.16 : 0)
+      )
+      .scaleEffect(configuration.isPressed ? 0.96 : (isFocused ? 1.055 : 1))
+      .shadow(color: tint.opacity(isFocused ? 0.82 : 0.5), radius: isFocused ? 22 : 12, y: 6)
+      .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
   }
 }
 
 struct RaidSecondaryButtonStyle: ButtonStyle {
+  @Environment(\.isFocused) private var isFocused
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
   func makeBody(configuration: Configuration) -> some View {
-    ViewThatFits(in: .horizontal) {
-      HStack(spacing: 9) {
-        BundledImage(name: "sweet1")
+    configuration.label
+      .font(RaidTypography.action)
+      .foregroundStyle(.white)
+      .lineLimit(1)
+      .minimumScaleFactor(0.7)
+      .shadow(color: .black.opacity(0.9), radius: 2, y: 2)
+      .frame(minWidth: 180, minHeight: 66)
+      .padding(.horizontal, 68)
+      .background(
+        BundledImage(name: "raid-secondary-button-v2")
           .scaledToFit()
-          .frame(width: 26, height: 26)
-        configuration.label
-      }
-      configuration.label
+          .brightness(configuration.isPressed ? -0.15 : 0)
+      )
+      .scaleEffect(configuration.isPressed ? 0.96 : (isFocused ? 1.05 : 1))
+      .shadow(color: RaidTheme.moon.opacity(isFocused ? 0.72 : 0.3), radius: isFocused ? 20 : 8)
+      .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+  }
+}
+
+struct RaidArtworkIconButtonStyle: ButtonStyle {
+  @Environment(\.isFocused) private var isFocused
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .scaleEffect(configuration.isPressed ? 0.9 : (isFocused ? 1.08 : 1))
+      .brightness(configuration.isPressed ? -0.14 : 0)
+      .shadow(color: RaidTheme.orange.opacity(isFocused ? 0.8 : 0.35), radius: 12)
+      .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
+  }
+}
+
+struct RaidArtworkIconLabel: View {
+  let artName: String
+  let title: String
+  var size: CGFloat = 62
+
+  var body: some View {
+    VStack(spacing: 4) {
+      BundledImage(name: artName)
+        .scaledToFit()
+        .frame(width: size, height: size)
+      Text(title)
+        .font(.custom("GapstownAHBold", size: 19, relativeTo: .headline))
+        .foregroundStyle(.white)
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .shadow(color: .black, radius: 2, y: 2)
     }
-    .font(RaidTypography.support)
-    .foregroundStyle(.white)
-    .lineLimit(1)
-    .minimumScaleFactor(0.82)
-    .frame(minHeight: 52)
-    .padding(.horizontal, 18)
-    .background(
-      BundledImage(name: "leaderboard-panel")
-        .scaledToFill()
-        .opacity(configuration.isPressed ? 0.82 : 0.7)
-        .clipShape(Capsule())
-    )
-    .overlay(Capsule().stroke(RaidTheme.orange.opacity(0.72), lineWidth: 1))
-    .scaleEffect(configuration.isPressed ? 0.98 : 1)
+    .frame(minWidth: max(76, size + 14), minHeight: size + 28)
+    .contentShape(Rectangle())
   }
 }
 
@@ -218,6 +227,10 @@ struct SkullToggleStyle: ToggleStyle {
     }
     .frame(minHeight: 66)
     .contentShape(Rectangle())
+    .accessibilityElement(children: .combine)
+    .accessibilityValue(configuration.isOn ? "On" : "Off")
+    .accessibilityAddTraits(.isButton)
+    .accessibilityAction { configuration.isOn.toggle() }
   }
 }
 

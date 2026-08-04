@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Introduce source-derived pumpkin/candy and skull/peppermint control artwork,
+  register the owned Creepsville and Gapstown display fonts with Dynamic Type,
+  enlarge the semantic type scale, and replace fixed game-over coordinates with
+  a centered, scroll-safe responsive composition.
 - Increase semantic type sizes, rebuild controls with responsive pumpkin and sweet
   artwork, tightly center the original painted moon arrow, and reproduce the owned
   settings PSD's paired white/red skull toggles.
