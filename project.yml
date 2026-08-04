@@ -16,7 +16,7 @@ settings:
 packages:
   GameEngineLib:
     url: https://github.com/sebastienrousseau/GameEngineLib.git
-    from: 0.4.1
+    from: 0.4.2
 targetTemplates:
   PumkinRaidApplication:
     type: application

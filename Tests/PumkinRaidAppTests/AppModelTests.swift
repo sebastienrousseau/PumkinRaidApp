@@ -3,6 +3,10 @@ import XCTest
 
 @testable import PumkinRaidApp
 
+#if os(macOS)
+  import AppKit
+#endif
+
 @MainActor
 final class AppModelTests: XCTestCase {
   private final class ScoreSubmitterSpy: CompetitiveScoreSubmitting {
@@ -87,6 +91,93 @@ final class AppModelTests: XCTestCase {
     if case .modeSelection = model.screen {} else { XCTFail("Expected mode selection") }
     model.beginGame(mode: .moonRush)
     if case .game(mode: .moonRush) = model.screen {} else { XCTFail("Expected Moon Rush") }
+  }
+
+  func testEveryNavigationStateHasAStableTransitionIdentifier() {
+    let model = makeModel()
+    XCTAssertEqual(model.screen.transitionID, "start")
+    model.showTutorial()
+    XCTAssertEqual(model.screen.transitionID, "tutorial")
+    model.showSettings()
+    XCTAssertEqual(model.screen.transitionID, "settings")
+    model.showModeSelection()
+    XCTAssertEqual(model.screen.transitionID, "modeSelection")
+    model.showPlayerHub(.missions)
+    XCTAssertEqual(model.screen.transitionID, "hub-missions")
+    model.beginGame(mode: .bossRaid)
+    XCTAssertEqual(model.screen.transitionID, "game-bossRaid")
+    XCTAssertTrue(model.shouldPlayMusic)
+    model.finishGame(score: 1)
+    XCTAssertEqual(model.screen.transitionID, "gameOver")
+    XCTAssertFalse(model.shouldPlayMusic)
+    model.showStart()
+    XCTAssertEqual(model.screen.transitionID, "start")
+  }
+
+  func testLegacyHighScoreAndLeaderboardPayloadsMigrate() throws {
+    let highScoreDefaults = makeDefaults()
+    highScoreDefaults.set(321, forKey: "PumkinRaid.highScore")
+    XCTAssertEqual(makeModel(defaults: highScoreDefaults).leaderboard.bestScore, 321)
+
+    let boardDefaults = makeDefaults()
+    let board = Leaderboard(entries: [LeaderboardEntry(playerName: "Legacy", score: 654)])
+    boardDefaults.set(
+      try JSONEncoder().encode(board),
+      forKey: "PumkinRaidApp.leaderboard.v1"
+    )
+    let migrated = makeModel(defaults: boardDefaults)
+    XCTAssertEqual(migrated.leaderboard.bestScore, 654)
+    XCTAssertEqual(migrated.leaderboard(for: .classicRaid).bestScore, 654)
+  }
+
+  func testCosmeticsOnlyEquipWhenUnlockedAndUseTheirCategory() {
+    let model = makeModel()
+    let locked = CosmeticItem(id: "ghost.locked", name: "Locked", category: .ghost, unlockLevel: 99)
+    model.equip(locked)
+    XCTAssertEqual(model.progress.equippedGhostID, "ghost.classic")
+
+    model.equip(ProgressionCatalog.cosmetics.first { $0.id == "ghost.classic" }!)
+    model.equip(ProgressionCatalog.cosmetics.first { $0.id == "trail.moonlight" }!)
+    XCTAssertEqual(model.progress.equippedGhostID, "ghost.classic")
+    XCTAssertEqual(model.progress.equippedTrailID, "trail.moonlight")
+
+    model.finishGame(score: 40_000)
+    let aura = ProgressionCatalog.cosmetics.first { $0.id == "aura.frenzy" }!
+    XCTAssertTrue(model.progress.unlockedCosmeticIDs.contains(aura.id))
+    model.equip(aura)
+  }
+
+  func testInactiveSceneInputAdaptersAreSafeNoOps() {
+    let model = makeModel()
+    model.movePhantom(horizontal: 1, vertical: -1)
+    #if os(macOS)
+      let event = NSEvent.mouseEvent(
+        with: .leftMouseDown,
+        location: .zero,
+        modifierFlags: [],
+        timestamp: 0,
+        windowNumber: 0,
+        context: nil,
+        eventNumber: 0,
+        clickCount: 1,
+        pressure: 1
+      )!
+      XCTAssertFalse(model.handlePointerEvent(event))
+    #endif
+  }
+
+  func testEmptyLeaderboardStoreCreatesBoardsOnDemandWithoutOverwritingMigration() {
+    var store = LocalLeaderboardStore()
+    XCTAssertEqual(store.leaderboard(for: .dailyHaunt).entries, [])
+    let original = Leaderboard(entries: [LeaderboardEntry(playerName: "Original", score: 10)])
+    store.migrateClassic(original)
+    store.migrateClassic(Leaderboard(entries: [LeaderboardEntry(playerName: "New", score: 99)]))
+    XCTAssertEqual(store.leaderboard(for: .classicRaid), original)
+    XCTAssertEqual(
+      store.submit(
+        LeaderboardEntry(playerName: "Assisted", score: 12), mode: .bossRaid, assisted: true),
+      1
+    )
   }
 
   func testRunProgressAndModeLeaderboardPersist() {

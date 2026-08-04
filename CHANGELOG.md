@@ -15,3 +15,4 @@
 - Exercise Wasm load, start, keyboard, and pointer paths in Chromium, Firefox, and WebKit.
 - Add generated iOS/iPadOS, tvOS, and macOS app targets with release entitlements.
 - Upgrade and audit the web toolchain to maintain a zero-known-vulnerability lockfile.
+- Enforce 100% function and line unit coverage for engine and application services.
