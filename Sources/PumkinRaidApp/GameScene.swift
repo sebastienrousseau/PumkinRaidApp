@@ -114,6 +114,7 @@ final class GameScene: SKScene {
       label.fontSize = 15
       label.fontColor = .orange
       label.horizontalAlignmentMode = .center
+      label.verticalAlignmentMode = .center
       label.zPosition = 20
       addChild(label)
     }
@@ -141,10 +142,10 @@ final class GameScene: SKScene {
     for label in [scoreLabel, livesLabel, slicesLabel, boomsLabel] {
       label.fontSize = labelSize
     }
-    scoreLabel.position = CGPoint(x: leftX, y: size.height - topMargin + 10)
-    livesLabel.position = CGPoint(x: leftX, y: size.height - topMargin - 13)
-    slicesLabel.position = CGPoint(x: rightX, y: size.height - topMargin + 10)
-    boomsLabel.position = CGPoint(x: rightX, y: size.height - topMargin - 13)
+    scoreLabel.position = CGPoint(x: leftX, y: size.height - topMargin + 15)
+    livesLabel.position = CGPoint(x: leftX, y: size.height - topMargin - 15)
+    slicesLabel.position = CGPoint(x: rightX, y: size.height - topMargin + 15)
+    boomsLabel.position = CGPoint(x: rightX, y: size.height - topMargin - 15)
   }
 
   private func resizeBackground(_ background: SKSpriteNode) {

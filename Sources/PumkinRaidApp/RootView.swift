@@ -308,14 +308,19 @@ private struct GameOverView: View {
   }
 
   private func leaderboardRow(rank: Int, entry: LeaderboardEntry) -> some View {
-    HStack {
-      Text("#\(rank)")
-        .frame(width: 34, alignment: .leading)
-        .foregroundStyle(rank == 1 ? .yellow : .white.opacity(0.65))
-      Text(entry.playerName)
-      Spacer()
+    ZStack {
       Text("\(entry.score)")
         .monospacedDigit()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+
+      HStack(spacing: 8) {
+        Text("#\(rank)")
+          .frame(width: 34, alignment: .leading)
+          .foregroundStyle(rank == 1 ? .yellow : .white.opacity(0.65))
+        Text(entry.playerName)
+          .lineLimit(1)
+        Spacer()
+      }
     }
     .font(.headline.weight(entry.id == entryID ? .heavy : .semibold))
     .foregroundStyle(entry.id == entryID ? .orange : .white)
