@@ -18,6 +18,7 @@ import SpriteKit
 @MainActor
 final class GameScene: SKScene {
   var gameOverHandler: ((Int) -> Void)?
+  var authoritativeState: GameState { simulation.state }
 
   private let settings: GameSettings
   private var simulation: GameSimulation
@@ -27,28 +28,19 @@ final class GameScene: SKScene {
   private let livesLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
   private let slicesLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
   private let boomsLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+  private let statusLabel = SKLabelNode(fontNamed: "AvenirNext-DemiBold")
   private let hudBackground = SKShapeNode()
   private var pumpkinNodes: [Int: SKSpriteNode] = [:]
+  private var pickupNode: SKSpriteNode?
   private var lastUpdateTime: TimeInterval = 0
   private var accumulatedTime: TimeInterval = 0
-  private var pendingActions: [InputAction] = []
-  private var directTarget: Vector2?
-  private var gestureStart: CGPoint?
-  private var gestureStartTime: TimeInterval = 0
+  private var inputRouter = SemanticInputRouter()
   private var gestureLastPoint: CGPoint?
   private var draggingPhantom = false
   private var gameEnded = false
   #if os(iOS)
     private let motionManager = CMMotionManager()
     private var motionIntent = Vector2.zero
-  #endif
-  #if os(iOS) || os(tvOS)
-    private var digitalHorizontal = 0.0
-    private var digitalVertical = 0.0
-  #endif
-  #if os(tvOS)
-    private var controllerDashPressed = false
-    private var controllerShriekPressed = false
   #endif
 
   private var spriteScale: CGFloat {
@@ -58,11 +50,11 @@ final class GameScene: SKScene {
     1 / Double(simulation.configuration.ticksPerSecond)
   }
 
-  init(settings: GameSettings, seed: UInt64? = nil) {
+  init(settings: GameSettings, mode: GameMode = .classicRaid, seed: UInt64? = nil) {
     self.settings = settings
     let runSeed = seed
       ?? UInt64(Date().timeIntervalSince1970 * 1_000_000) ^ UInt64.random(in: .min ... .max)
-    simulation = GameSimulation(seed: runSeed)
+    simulation = GameSimulation(seed: runSeed, mode: mode)
     super.init(size: CGSize(width: 320, height: 568))
     scaleMode = .resizeFill
     backgroundColor = .black
@@ -98,6 +90,7 @@ final class GameScene: SKScene {
     layoutHUD()
     phantom.size = CGSize(width: 72 * spriteScale, height: 76 * spriteScale)
     for node in pumpkinNodes.values { resizePumpkin(node) }
+    pickupNode?.size = CGSize(width: 50 * spriteScale, height: 50 * spriteScale)
     renderAuthoritativeState()
   }
 
@@ -112,10 +105,7 @@ final class GameScene: SKScene {
 
     var steps = 0
     while accumulatedTime >= fixedDelta, steps < 6 {
-      var actions = continuousInputActions()
-      actions.append(contentsOf: pendingActions)
-      pendingActions.removeAll(keepingCapacity: true)
-      let events = simulation.step(InputFrame(actions: actions))
+      let events = simulation.step(continuousInputFrame())
       handle(events)
       accumulatedTime -= fixedDelta
       steps += 1
@@ -162,6 +152,11 @@ final class GameScene: SKScene {
       label.zPosition = 20
       addChild(label)
     }
+    statusLabel.fontColor = .white
+    statusLabel.horizontalAlignmentMode = .center
+    statusLabel.verticalAlignmentMode = .center
+    statusLabel.zPosition = 20
+    addChild(statusLabel)
     layoutHUD()
   }
 
@@ -191,6 +186,8 @@ final class GameScene: SKScene {
     livesLabel.position = CGPoint(x: leftX, y: centerY - 15)
     slicesLabel.position = CGPoint(x: rightX, y: centerY + 15)
     boomsLabel.position = CGPoint(x: rightX, y: centerY - 15)
+    statusLabel.fontSize = min(14, max(11, size.width * 0.028))
+    statusLabel.position = CGPoint(x: size.width / 2, y: centerY - panelHeight / 2 - 14)
   }
 
   private func buildPhantom() {
@@ -211,10 +208,38 @@ final class GameScene: SKScene {
       node.name = "pumpkin-\(pumpkin.id)"
       node.userData = ["scale": pumpkin.radius / 0.04]
       node.zPosition = 3
+      switch pumpkin.kind {
+      case .target:
+        node.colorBlendFactor = 0
+      case .armored:
+        node.color = SKColor(red: 0.42, green: 0.49, blue: 0.58, alpha: 1)
+        node.colorBlendFactor = 0.48
+      case .cursed:
+        node.color = SKColor(red: 0.55, green: 0.12, blue: 0.72, alpha: 1)
+        node.colorBlendFactor = 0.64
+      }
       resizePumpkin(node)
       node.run(.repeatForever(.animate(with: textures, timePerFrame: 0.17)), withKey: "animation")
       world.addChild(node)
       pumpkinNodes[pumpkin.id] = node
+    }
+    if let pickup = simulation.state.pickup {
+      if pickupNode?.userData?["id"] as? Int != pickup.id {
+        pickupNode?.removeFromParent()
+        let prefix = pickup.kind == 0 ? "" : "\(pickup.kind + 1)"
+        let textures = (1...3).map { AssetLoader.texture("\(prefix)sweet\($0)") }
+        let node = SKSpriteNode(texture: textures[0])
+        node.name = "pickup-\(pickup.id)"
+        node.userData = ["id": pickup.id]
+        node.size = CGSize(width: 50 * spriteScale, height: 50 * spriteScale)
+        node.zPosition = 4
+        node.run(.repeatForever(.animate(with: textures, timePerFrame: 0.2)))
+        world.addChild(node)
+        pickupNode = node
+      }
+    } else {
+      pickupNode?.removeFromParent()
+      pickupNode = nil
     }
   }
 
@@ -231,10 +256,23 @@ final class GameScene: SKScene {
     for pumpkin in simulation.state.pumpkins {
       pumpkinNodes[pumpkin.id]?.position = scenePoint(pumpkin.position)
     }
+    if let pickup = simulation.state.pickup { pickupNode?.position = scenePoint(pickup.position) }
     scoreLabel.text = "Score: \(simulation.state.session.score)"
     livesLabel.text = "Lives: \(simulation.state.session.lives)"
     slicesLabel.text = "Dashes: \(simulation.state.session.slices)"
     boomsLabel.text = "Shrieks: \(simulation.state.session.booms)"
+    let state = simulation.state
+    if state.frenzyTicksRemaining > 0 {
+      statusLabel.text = "FRENZY x2"
+      statusLabel.fontColor = .yellow
+    } else if let ticks = state.remainingTicks {
+      let seconds = Int(ceil(Double(ticks) / Double(simulation.configuration.ticksPerSecond)))
+      statusLabel.text = "MOON RUSH  •  \(seconds)s"
+      statusLabel.fontColor = .white
+    } else {
+      statusLabel.text = "WAVE \(max(1, state.waveIndex))  •  \(modeTitle(state.mode))"
+      statusLabel.fontColor = .white
+    }
   }
 
   private func handle(_ events: [GameEvent]) {
@@ -258,6 +296,33 @@ final class GameScene: SKScene {
             .moveBy(x: 14, y: 0, duration: 0.08),
             .moveBy(x: -7, y: 0, duration: 0.04),
           ]))
+      case let .armoredHit(id, remaining):
+        guard let node = pumpkinNodes[id] else { continue }
+        showCallout("CRACK!  \(remaining) HIT", at: node.position, color: .cyan)
+        node.run(.sequence([.scale(to: 1.18, duration: 0.06), .scale(to: 1, duration: 0.1)]))
+        AudioManager.shared.play("bow_wah", enabled: settings.effectsEnabled)
+      case let .cursedTriggered(id, _):
+        let position = pumpkinNodes[id]?.position ?? phantom.position
+        showCallout("CURSED!", at: position, color: .purple)
+        burst(at: position, color: .purple, identity: id)
+        AudioManager.shared.play("explode", enabled: settings.effectsEnabled)
+        provideHitFeedback()
+      case let .nearMiss(id, points):
+        let position = pumpkinNodes[id]?.position ?? phantom.position
+        showCallout("NEAR MISS +\(points)", at: position, color: .cyan)
+      case let .pickupCollected(id, _, points):
+        let position = pickupNode?.position ?? phantom.position
+        showCallout("SWEET +\(points)", at: position, color: .yellow)
+        burst(at: position, color: .yellow, identity: id)
+        AudioManager.shared.play("ding", enabled: settings.effectsEnabled)
+      case let .waveStarted(index, pattern):
+        let title = pattern == .breathingSpace ? "BREATHE" : "WAVE \(index)"
+        showCallout(title, at: CGPoint(x: size.width / 2, y: size.height * 0.68), color: .white)
+      case .frenzyStarted:
+        showCallout("FRENZY x2!", at: CGPoint(x: size.width / 2, y: size.height * 0.58), color: .yellow)
+        AudioManager.shared.play("ding", enabled: settings.effectsEnabled)
+      case .lastChance:
+        showCallout("LAST CHANCE!", at: CGPoint(x: size.width / 2, y: size.height * 0.5), color: .red)
       case let .dashed(from, to):
         drawBladeTrail(from: scenePoint(from), to: scenePoint(to))
       case let .shrieked(origin, count):
@@ -270,7 +335,7 @@ final class GameScene: SKScene {
         showCallout("READY!", at: CGPoint(x: size.width / 2, y: size.height / 2), color: .white)
       case let .gameOver(score):
         finishGame(score: score)
-      case .spawned, .avoided:
+      case .spawned, .avoided, .pickupSpawned, .pickupMissed:
         break
       }
     }
@@ -336,61 +401,63 @@ final class GameScene: SKScene {
     }
   }
 
-  private func continuousInputActions() -> [InputAction] {
-    var actions: [InputAction] = []
-    if let directTarget { actions.append(.moveTo(x: directTarget.x, y: directTarget.y)) }
+  private func continuousInputFrame() -> InputFrame {
     #if os(macOS)
       let keyboard = KeyboardState.shared
-      let x = Double((keyboard.isPressed(124) || keyboard.isPressed(2) ? 1 : 0)
-        - (keyboard.isPressed(123) || keyboard.isPressed(0) ? 1 : 0))
-      let y = Double((keyboard.isPressed(125) || keyboard.isPressed(1) ? 1 : 0)
-        - (keyboard.isPressed(126) || keyboard.isPressed(13) ? 1 : 0))
-      if x != 0 || y != 0 { actions.append(.move(x: x, y: y)) }
+      inputRouter.set(.left, pressed: keyboard.isPressed(123) || keyboard.isPressed(0))
+      inputRouter.set(.right, pressed: keyboard.isPressed(124) || keyboard.isPressed(2))
+      inputRouter.set(.down, pressed: keyboard.isPressed(125) || keyboard.isPressed(1))
+      inputRouter.set(.up, pressed: keyboard.isPressed(126) || keyboard.isPressed(13))
       for action in keyboard.consumeActions() {
         switch action {
         case .dash:
-          let fallbackY = y == 0 && x == 0 ? -1 : y
-          actions.append(.dash(x: x, y: fallbackY))
-        case .shriek: actions.append(.shriek)
-        case .pause: actions.append(simulation.state.isPaused ? .resume : .pause)
+          inputRouter.set(.dash, pressed: false)
+          inputRouter.set(.dash, pressed: true)
+        case .shriek:
+          inputRouter.set(.shriek, pressed: false)
+          inputRouter.set(.shriek, pressed: true)
+        case .pause:
+          inputRouter.set(.pause, pressed: false)
+          inputRouter.set(.pause, pressed: true)
         }
       }
     #elseif os(iOS)
-      let x = digitalHorizontal + motionIntent.x
-      let y = digitalVertical + motionIntent.y
-      if abs(x) > 0.01 || abs(y) > 0.01 { actions.append(.move(x: x, y: y)) }
+      if abs(motionIntent.x) > 0.01 || abs(motionIntent.y) > 0.01 {
+        inputRouter.enqueue(.move(x: motionIntent.x, y: motionIntent.y))
+      }
     #elseif os(tvOS)
-      var x = digitalHorizontal
-      var y = digitalVertical
+      var x = 0.0
+      var y = 0.0
       if let gamepad = GCController.current?.extendedGamepad {
         x += Double(gamepad.leftThumbstick.xAxis.value + gamepad.dpad.xAxis.value)
         y -= Double(gamepad.leftThumbstick.yAxis.value + gamepad.dpad.yAxis.value)
-        let dash = gamepad.buttonA.isPressed
-        let shriek = gamepad.buttonB.isPressed
-        if dash, !controllerDashPressed { actions.append(.dash(x: x, y: y == 0 && x == 0 ? -1 : y)) }
-        if shriek, !controllerShriekPressed { actions.append(.shriek) }
-        controllerDashPressed = dash
-        controllerShriekPressed = shriek
+        inputRouter.set(.dash, pressed: gamepad.buttonA.isPressed)
+        inputRouter.set(.shriek, pressed: gamepad.buttonB.isPressed)
       } else if let gamepad = GCController.current?.microGamepad {
         x += Double(gamepad.dpad.xAxis.value)
         y -= Double(gamepad.dpad.yAxis.value)
       }
-      if abs(x) > 0.01 || abs(y) > 0.01 { actions.append(.move(x: x, y: y)) }
+      inputRouter.set(.left, pressed: x < -0.08)
+      inputRouter.set(.right, pressed: x > 0.08)
+      inputRouter.set(.up, pressed: y < -0.08)
+      inputRouter.set(.down, pressed: y > 0.08)
     #endif
-    return actions
+    return inputRouter.nextFrame()
   }
 
   private func beginGesture(at point: CGPoint, timestamp: TimeInterval) {
-    gestureStart = point
     gestureLastPoint = point
-    gestureStartTime = timestamp
     draggingPhantom = phantom.frame.insetBy(dx: -48, dy: -48).contains(point)
-    directTarget = draggingPhantom ? normalizedPoint(point) : nil
+    inputRouter.beginPointer(
+      at: normalizedPoint(point),
+      timestamp: timestamp,
+      controlsGhost: draggingPhantom
+    )
   }
 
   private func moveGesture(to point: CGPoint) {
     if draggingPhantom {
-      directTarget = normalizedPoint(point)
+      inputRouter.movePointer(to: normalizedPoint(point))
       if let previous = gestureLastPoint { drawBladeTrail(from: previous, to: point) }
     }
     gestureLastPoint = point
@@ -398,21 +465,10 @@ final class GameScene: SKScene {
 
   private func endGesture(at point: CGPoint, timestamp: TimeInterval) {
     defer {
-      gestureStart = nil
       gestureLastPoint = nil
       draggingPhantom = false
-      directTarget = nil
     }
-    guard let start = gestureStart else { return }
-    let dx = point.x - start.x
-    let dy = point.y - start.y
-    let distance = hypot(dx, dy)
-    let duration = max(0.001, timestamp - gestureStartTime)
-    if distance >= 42, duration <= 0.55 {
-      pendingActions.append(.dash(x: Double(dx / max(distance, 1)), y: Double(-dy / max(distance, 1))))
-    } else if !draggingPhantom || distance < 18 {
-      pendingActions.append(.shriek)
-    }
+    inputRouter.endPointer(at: normalizedPoint(point), timestamp: timestamp)
   }
 
   private func normalizedPoint(_ point: CGPoint) -> Vector2 {
@@ -426,9 +482,19 @@ final class GameScene: SKScene {
     CGPoint(x: CGFloat(point.x) * size.width, y: CGFloat(1 - point.y) * size.height)
   }
 
+  private func modeTitle(_ mode: GameMode) -> String {
+    switch mode {
+    case .classicRaid: "CLASSIC"
+    case .moonRush: "MOON RUSH"
+    case .spiritZen: "ZEN"
+    case .dailyHaunt: "DAILY"
+    case .bossRaid: "BOSS"
+    }
+  }
+
   func movePhantom(horizontal: CGFloat, vertical: CGFloat) {
     let current = simulation.state.ghost.position
-    pendingActions.append(
+    inputRouter.enqueue(
       .moveTo(
         x: current.x + Double(horizontal / max(1, size.width)),
         y: current.y - Double(vertical / max(1, size.height))
@@ -437,17 +503,20 @@ final class GameScene: SKScene {
 
   #if os(iOS) || os(tvOS)
     private func updateDigitalKey(_ keyCode: UIKeyboardHIDUsage, isPressed: Bool) {
-      let value = isPressed ? 1.0 : 0.0
       switch keyCode {
-      case .keyboardLeftArrow, .keyboardA: digitalHorizontal = -value
-      case .keyboardRightArrow, .keyboardD: digitalHorizontal = value
-      case .keyboardUpArrow, .keyboardW: digitalVertical = -value
-      case .keyboardDownArrow, .keyboardS: digitalVertical = value
+      case .keyboardLeftArrow, .keyboardA: inputRouter.set(.left, pressed: isPressed)
+      case .keyboardRightArrow, .keyboardD: inputRouter.set(.right, pressed: isPressed)
+      case .keyboardUpArrow, .keyboardW: inputRouter.set(.up, pressed: isPressed)
+      case .keyboardDownArrow, .keyboardS: inputRouter.set(.down, pressed: isPressed)
       case .keyboardSpacebar where isPressed:
-        pendingActions.append(.dash(x: digitalHorizontal, y: digitalVertical == 0 && digitalHorizontal == 0 ? -1 : digitalVertical))
-      case .keyboardReturnOrEnter where isPressed: pendingActions.append(.shriek)
+        inputRouter.set(.dash, pressed: false)
+        inputRouter.set(.dash, pressed: true)
+      case .keyboardReturnOrEnter where isPressed:
+        inputRouter.set(.shriek, pressed: false)
+        inputRouter.set(.shriek, pressed: true)
       case .keyboardEscape where isPressed:
-        pendingActions.append(simulation.state.isPaused ? .resume : .pause)
+        inputRouter.set(.pause, pressed: false)
+        inputRouter.set(.pause, pressed: true)
       default: break
       }
     }

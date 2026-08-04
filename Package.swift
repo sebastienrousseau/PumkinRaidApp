@@ -14,7 +14,7 @@ let package = Package(
     .executable(name: "PumkinRaidApp", targets: ["PumkinRaidApp"]),
   ],
   dependencies: [
-    .package(url: "https://github.com/sebastienrousseau/GameEngineLib.git", from: "0.2.0")
+    .package(url: "https://github.com/sebastienrousseau/GameEngineLib.git", from: "0.3.0")
   ],
   targets: [
     .executableTarget(

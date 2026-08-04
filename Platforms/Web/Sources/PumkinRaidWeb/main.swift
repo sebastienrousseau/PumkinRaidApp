@@ -11,11 +11,8 @@ private final class BrowserGame {
   private let canvas: JSObject
   private let context: JSObject
   private var simulation = GameSimulation(seed: 0)
-  private var pressedKeys: Set<String> = []
-  private var pendingActions: [InputAction] = []
-  private var pointerTarget: Vector2?
-  private var pointerStart: Vector2?
-  private var pointerStartTime = 0.0
+  private var inputRouter = SemanticInputRouter()
+  private var pointerIsActive = false
   private var lastTimestamp = 0.0
   private var accumulator = 0.0
   private var running = false
@@ -51,58 +48,46 @@ private final class BrowserGame {
         return .undefined
       }
       let normalized = key.lowercased()
-      self.pressedKeys.insert(normalized)
-      if event.repeat.boolean != true {
-        switch normalized {
-        case " ": self.pendingActions.append(.dash(x: self.keyboardX, y: self.keyboardY))
-        case "enter": self.pendingActions.append(.shriek)
-        case "escape":
-          self.pendingActions.append(self.simulation.state.isPaused ? .resume : .pause)
-        default: break
-        }
-      }
+      self.setKey(normalized, pressed: true, isRepeat: event.repeat.boolean == true)
       event.preventDefault!()
       return .undefined
     }
     let keyUp = JSClosure { [weak self] arguments in
       guard let key = arguments.first?.object?.key.string else { return .undefined }
-      self?.pressedKeys.remove(key.lowercased())
+      self?.setKey(key.lowercased(), pressed: false, isRepeat: false)
       return .undefined
     }
     let pointerDown = JSClosure { [weak self] arguments in
       guard let self, let event = arguments.first?.object else { return .undefined }
       let point = self.normalizedPointer(event)
-      self.pointerStart = point
-      self.pointerTarget = point
-      self.pointerStartTime = event.timeStamp.number ?? 0
+      let ghost = self.simulation.state.ghost.position
+      let dx = point.x - ghost.x
+      let dy = point.y - ghost.y
+      self.pointerIsActive = true
+      self.inputRouter.beginPointer(
+        at: point,
+        timestamp: (event.timeStamp.number ?? 0) / 1_000,
+        controlsGhost: (dx * dx + dy * dy).squareRoot() <= 0.14
+      )
       self.canvas.setPointerCapture?(event.pointerId)
       event.preventDefault!()
       return .undefined
     }
     let pointerMove = JSClosure { [weak self] arguments in
-      guard let self, self.pointerStart != nil, let event = arguments.first?.object else {
+      guard let self, self.pointerIsActive, let event = arguments.first?.object else {
         return .undefined
       }
-      self.pointerTarget = self.normalizedPointer(event)
+      self.inputRouter.movePointer(to: self.normalizedPointer(event))
       event.preventDefault!()
       return .undefined
     }
     let pointerUp = JSClosure { [weak self] arguments in
-      guard let self, let event = arguments.first?.object, let start = self.pointerStart else {
+      guard let self, self.pointerIsActive, let event = arguments.first?.object else {
         return .undefined
       }
       let end = self.normalizedPointer(event)
-      let dx = end.x - start.x
-      let dy = end.y - start.y
-      let distance = (dx * dx + dy * dy).squareRoot()
-      let duration = (event.timeStamp.number ?? 0) - self.pointerStartTime
-      if distance >= 0.08, duration <= 550 {
-        self.pendingActions.append(.dash(x: dx, y: dy))
-      } else if distance < 0.035 {
-        self.pendingActions.append(.shriek)
-      }
-      self.pointerStart = nil
-      self.pointerTarget = nil
+      self.inputRouter.endPointer(at: end, timestamp: (event.timeStamp.number ?? 0) / 1_000)
+      self.pointerIsActive = false
       event.preventDefault!()
       return .undefined
     }
@@ -111,11 +96,10 @@ private final class BrowserGame {
       return .undefined
     }
     let blur = JSClosure { [weak self] _ in
-      self?.pressedKeys.removeAll()
-      self?.pointerStart = nil
-      self?.pointerTarget = nil
+      self?.inputRouter.cancelAll()
+      self?.pointerIsActive = false
       if self?.running == true, self?.simulation.state.isPaused == false {
-        self?.pendingActions.append(.pause)
+        self?.inputRouter.enqueue(.pause)
       }
       return .undefined
     }
@@ -133,10 +117,8 @@ private final class BrowserGame {
   private func start() {
     let seed = UInt64(Date.now.timeIntervalSince1970 * 1_000_000)
     simulation = GameSimulation(seed: seed)
-    pendingActions.removeAll(keepingCapacity: true)
-    pressedKeys.removeAll()
-    pointerTarget = nil
-    pointerStart = nil
+    inputRouter.cancelAll()
+    pointerIsActive = false
     lastTimestamp = 0
     accumulator = 0
     running = true
@@ -160,18 +142,13 @@ private final class BrowserGame {
     let fixedDelta = 1 / Double(simulation.configuration.ticksPerSecond)
     var steps = 0
     while accumulator >= fixedDelta, steps < 6 {
-      var actions: [InputAction] = []
-      if keyboardX != 0 || keyboardY != 0 { actions.append(.move(x: keyboardX, y: keyboardY)) }
-      if let pointerTarget { actions.append(.moveTo(x: pointerTarget.x, y: pointerTarget.y)) }
-      actions.append(contentsOf: pendingActions)
-      pendingActions.removeAll(keepingCapacity: true)
-      _ = simulation.step(InputFrame(actions: actions))
+      _ = simulation.step(inputRouter.nextFrame())
       accumulator -= fixedDelta
       steps += 1
     }
     render()
     updateHUD()
-    if simulation.state.session.isGameOver {
+    if simulation.state.isGameOver {
       running = false
       document.getElementById("menu")?.object?.classList.remove!("hidden")
       document.getElementById("play")?.object?.innerText = "PLAY AGAIN"
@@ -180,15 +157,17 @@ private final class BrowserGame {
     }
   }
 
-  private var keyboardX: Double {
-    Double((pressedKeys.contains("arrowright") || pressedKeys.contains("d") ? 1 : 0)
-      - (pressedKeys.contains("arrowleft") || pressedKeys.contains("a") ? 1 : 0))
-  }
-
-  private var keyboardY: Double {
-    let value = Double((pressedKeys.contains("arrowdown") || pressedKeys.contains("s") ? 1 : 0)
-      - (pressedKeys.contains("arrowup") || pressedKeys.contains("w") ? 1 : 0))
-    return keyboardX == 0 && value == 0 ? -1 : value
+  private func setKey(_ key: String, pressed: Bool, isRepeat: Bool) {
+    switch key {
+    case "arrowleft", "a": inputRouter.set(.left, pressed: pressed)
+    case "arrowright", "d": inputRouter.set(.right, pressed: pressed)
+    case "arrowup", "w": inputRouter.set(.up, pressed: pressed)
+    case "arrowdown", "s": inputRouter.set(.down, pressed: pressed)
+    case " " where !isRepeat: inputRouter.set(.dash, pressed: pressed)
+    case "enter" where !isRepeat: inputRouter.set(.shriek, pressed: pressed)
+    case "escape" where !isRepeat: inputRouter.set(.pause, pressed: pressed)
+    default: break
+    }
   }
 
   private func normalizedPointer(_ event: JSObject) -> Vector2 {
@@ -222,14 +201,32 @@ private final class BrowserGame {
       let x = pumpkin.position.x * width
       let y = pumpkin.position.y * height
       let radius = pumpkin.radius * min(width, height)
-      switch pumpkin.archetype {
-      case .standard: context.fillStyle = "#ff7a00"
-      case .swift: context.fillStyle = "#ffb000"
-      case .drifting: context.fillStyle = "#ef4b22"
-      case .heavy: context.fillStyle = "#9f3d12"
+      switch pumpkin.kind {
+      case .armored: context.fillStyle = "#788596"
+      case .cursed: context.fillStyle = "#9228b5"
+      case .target:
+        switch pumpkin.archetype {
+        case .standard: context.fillStyle = "#ff7a00"
+        case .swift: context.fillStyle = "#ffb000"
+        case .drifting: context.fillStyle = "#ef4b22"
+        case .heavy: context.fillStyle = "#9f3d12"
+        }
       }
       context.beginPath!()
       context.ellipse!(x, y, radius, radius * 0.82, 0, 0, Double.pi * 2)
+      context.fill!()
+    }
+
+    if let pickup = simulation.state.pickup {
+      context.fillStyle = ["#ffe16a", "#64e8ff", "#ff72c6"][pickup.kind]
+      context.beginPath!()
+      context.arc!(
+        pickup.position.x * width,
+        pickup.position.y * height,
+        min(width, height) * 0.027,
+        0,
+        Double.pi * 2
+      )
       context.fill!()
     }
 

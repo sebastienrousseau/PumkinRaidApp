@@ -11,14 +11,16 @@ final class AppModel: ObservableObject {
   enum Screen {
     case start
     case settings
-    case game
-    case gameOver(score: Int, leaderboard: Leaderboard, entryID: UUID)
+    case modeSelection
+    case game(mode: GameMode)
+    case gameOver(score: Int, mode: GameMode, leaderboard: Leaderboard, entryID: UUID)
 
     var transitionID: String {
       switch self {
       case .start: "start"
       case .settings: "settings"
-      case .game: "game"
+      case .modeSelection: "modeSelection"
+      case .game(let mode): "game-\(mode.rawValue)"
       case .gameOver: "gameOver"
       }
     }
@@ -56,7 +58,8 @@ final class AppModel: ObservableObject {
     }
   }
 
-  func beginGame() { screen = .game }
+  func showModeSelection() { screen = .modeSelection }
+  func beginGame(mode: GameMode = .classicRaid) { screen = .game(mode: mode) }
   func showSettings() { screen = .settings }
   func showStart() { screen = .start }
 
@@ -65,7 +68,7 @@ final class AppModel: ObservableObject {
     return true
   }
 
-  func finishGame(score: Int) {
+  func finishGame(score: Int, mode: GameMode = .classicRaid) {
     #if os(macOS)
       KeyboardState.shared.clear()
     #endif
@@ -75,7 +78,7 @@ final class AppModel: ObservableObject {
     if let data = try? JSONEncoder().encode(leaderboard) {
       defaults.set(data, forKey: Self.leaderboardKey)
     }
-    screen = .gameOver(score: score, leaderboard: leaderboard, entryID: entry.id)
+    screen = .gameOver(score: score, mode: mode, leaderboard: leaderboard, entryID: entry.id)
   }
 
   func movePhantom(horizontal: CGFloat, vertical: CGFloat) {

@@ -33,4 +33,12 @@ final class AppModelTests: XCTestCase {
     XCTAssertEqual(model.leaderboard.entries.map(\.score), [900, 100])
     XCTAssertEqual(AppModel(defaults: defaults).leaderboard.entries.map(\.score), [900, 100])
   }
+
+  func testModeSelectionAndChosenModeAreExplicitStates() {
+    let model = AppModel(defaults: makeDefaults())
+    model.showModeSelection()
+    if case .modeSelection = model.screen {} else { XCTFail("Expected mode selection") }
+    model.beginGame(mode: .moonRush)
+    if case .game(mode: .moonRush) = model.screen {} else { XCTFail("Expected Moon Rush") }
+  }
 }

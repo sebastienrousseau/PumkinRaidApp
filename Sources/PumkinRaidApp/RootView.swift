@@ -13,12 +13,14 @@ struct RootView: View {
         StartView()
       case .settings:
         SettingsView()
-      case .game:
-        GameView(settings: model.settings) { score in
-          model.finishGame(score: score)
+      case .modeSelection:
+        ModeSelectionView()
+      case .game(let mode):
+        GameView(settings: model.settings, mode: mode) { score in
+          model.finishGame(score: score, mode: mode)
         }
-      case .gameOver(let score, let leaderboard, let entryID):
-        GameOverView(score: score, leaderboard: leaderboard, entryID: entryID)
+      case .gameOver(let score, let mode, let leaderboard, let entryID):
+        GameOverView(score: score, mode: mode, leaderboard: leaderboard, entryID: entryID)
       }
     }
     .id(model.screen.transitionID)
@@ -72,7 +74,7 @@ private struct StartView: View {
             .frame(width: sourceSize.width, height: sourceSize.height)
 
           Button {
-            model.beginGame()
+            model.showModeSelection()
           } label: {
             ImageButton(name: "button-start", size: playSize / artworkScale)
               .scaleEffect(playPulse ? 1.08 : 0.96)
@@ -155,7 +157,7 @@ private struct SettingsView: View {
             Label("Collect sweets and build your high score", systemImage: "star.fill")
           }
           .font(.callout.weight(.semibold))
-          Button("Get started!") { model.beginGame() }
+          Button("Choose a mode") { model.showModeSelection() }
             .buttonStyle(.borderedProminent)
             .tint(.orange)
           Button("Back") { model.showStart() }
@@ -172,16 +174,135 @@ private struct SettingsView: View {
   }
 }
 
+private struct ModeSelectionView: View {
+  @EnvironmentObject private var model: AppModel
+
+  private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
+
+  var body: some View {
+    ZStack {
+      GameArtwork(name: "background")
+        .overlay(.black.opacity(0.38))
+      ScrollView {
+        VStack(spacing: 22) {
+          VStack(spacing: 6) {
+            Text("CHOOSE YOUR RAID")
+              .font(.system(size: 34, weight: .black, design: .rounded))
+              .foregroundStyle(.orange)
+            Text("Every mode uses the same responsive controls.")
+              .font(.subheadline.weight(.semibold))
+              .foregroundStyle(.white.opacity(0.78))
+          }
+          LazyVGrid(columns: columns, spacing: 16) {
+            modeCard(
+              .classicRaid,
+              title: "Classic Raid",
+              detail: "Survive escalating waves and protect every life.",
+              symbol: "shield.lefthalf.filled"
+            )
+            modeCard(
+              .moonRush,
+              title: "Moon Rush",
+              detail: "Score as much as possible in sixty seconds.",
+              symbol: "timer"
+            )
+            modeCard(
+              .spiritZen,
+              title: "Spirit Zen",
+              detail: "No game over—practice movement and flowing combos.",
+              symbol: "moon.stars.fill"
+            )
+            modeCard(
+              .dailyHaunt,
+              title: "Daily Haunt",
+              detail: "A repeatable daily ruleset built for fair competition.",
+              symbol: "calendar"
+            )
+            modeCard(
+              .bossRaid,
+              title: "Boss Raid",
+              detail: "Face heavy formations and master multi-hit targets.",
+              symbol: "crown.fill"
+            )
+          }
+          Button("Back") { model.showStart() }
+            .buttonStyle(.bordered)
+            .foregroundStyle(.white)
+        }
+        .padding(28)
+        .frame(maxWidth: 820)
+        .frame(maxWidth: .infinity)
+      }
+    }
+    .ignoresSafeArea()
+  }
+
+  private func modeCard(
+    _ mode: GameMode,
+    title: String,
+    detail: String,
+    symbol: String
+  ) -> some View {
+    Button { model.beginGame(mode: mode) } label: {
+      VStack(alignment: .leading, spacing: 12) {
+        Image(systemName: symbol)
+          .font(.system(size: 28, weight: .bold))
+          .foregroundStyle(.orange)
+        Text(title)
+          .font(.title3.weight(.black))
+        Text(detail)
+          .font(.subheadline)
+          .foregroundStyle(.white.opacity(0.76))
+          .multilineTextAlignment(.leading)
+        Spacer(minLength: 0)
+        Label("Play", systemImage: "arrow.right.circle.fill")
+          .font(.subheadline.weight(.bold))
+          .foregroundStyle(.orange)
+      }
+      .frame(maxWidth: .infinity, minHeight: 150, alignment: .leading)
+      .padding(20)
+      .background(.black.opacity(0.78), in: RoundedRectangle(cornerRadius: 20))
+      .overlay(
+        RoundedRectangle(cornerRadius: 20).stroke(.orange.opacity(0.72), lineWidth: 1.5)
+      )
+    }
+    .buttonStyle(.plain)
+    .accessibilityLabel("\(title). \(detail)")
+  }
+}
+
 private struct GameView: View {
   @EnvironmentObject private var model: AppModel
   let settings: GameEngineLib.GameSettings
+  let mode: GameMode
   let onGameOver: (Int) -> Void
   @State private var scene: GameScene
 
-  init(settings: GameEngineLib.GameSettings, onGameOver: @escaping (Int) -> Void) {
+  init(
+    settings: GameEngineLib.GameSettings,
+    mode: GameMode,
+    onGameOver: @escaping (Int) -> Void
+  ) {
     self.settings = settings
+    self.mode = mode
     self.onGameOver = onGameOver
-    _scene = State(initialValue: GameScene(settings: settings))
+    _scene = State(
+      initialValue: GameScene(
+        settings: settings,
+        mode: mode,
+        seed: mode == .dailyHaunt ? Self.dailySeed() : nil
+      )
+    )
+  }
+
+  private static func dailySeed(now: Date = Date()) -> UInt64 {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    let components = calendar.dateComponents([.year, .month, .day], from: now)
+    let value = (components.year ?? 0) * 10_000
+      + (components.month ?? 0) * 100
+      + (components.day ?? 0)
+    return UInt64(max(0, value)) ^ 0x4441_494C_595F_5241
   }
 
   var body: some View {
@@ -215,6 +336,7 @@ private struct GameView: View {
 private struct GameOverView: View {
   @EnvironmentObject private var model: AppModel
   let score: Int
+  let mode: GameMode
   let leaderboard: Leaderboard
   let entryID: UUID
 
@@ -275,7 +397,7 @@ private struct GameOverView: View {
 
         VStack(spacing: 14) {
           Button {
-            model.beginGame()
+            model.beginGame(mode: mode)
           } label: {
             Label("Play again", systemImage: "arrow.clockwise.circle.fill")
               .font(.title3.bold())
