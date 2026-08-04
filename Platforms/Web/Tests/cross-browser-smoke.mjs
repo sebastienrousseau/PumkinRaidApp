@@ -59,6 +59,10 @@ for (const [name, browserType] of engines) {
     await page.mouse.move(box.x + box.width * ghostX, box.y + box.height * ghostY);
     await page.mouse.down();
     await page.mouse.move(box.x + box.width * Math.min(0.9, ghostX + 0.15), box.y + box.height * ghostY, { steps: 4 });
+    // Keep the drag active across several 60 Hz simulation ticks. Real pointer
+    // input naturally spans frames; an immediate synthetic release can occur in
+    // the same WebKit frame and intentionally clears the direct target.
+    await page.waitForTimeout(160);
     await page.mouse.up();
     await page.waitForTimeout(250);
     const pointerX = Number(await page.locator("html").getAttribute("data-ghost-x"));
