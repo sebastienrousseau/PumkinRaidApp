@@ -92,17 +92,60 @@ final class GameSceneTests: XCTestCase {
     for size in sizes {
       let layout = StartLayoutMetrics(size: size, safeTop: 24)
       XCTAssertGreaterThanOrEqual(layout.playSize, 88)
-      XCTAssertLessThanOrEqual(layout.playSize, 124)
+      XCTAssertLessThanOrEqual(layout.playSize, 210)
       XCTAssertGreaterThan(layout.contentRegionHeight, 0)
       if layout.isLandscape {
         XCTAssertLessThan(layout.contentCenter.x, size.width / 2)
         XCTAssertLessThanOrEqual(layout.contentWidth, size.width * 0.46)
+        XCTAssertGreaterThanOrEqual(
+          layout.contentCenter.y - layout.contentRegionHeight / 2,
+          layout.contentTop - 0.001
+        )
+        XCTAssertLessThanOrEqual(
+          layout.contentCenter.y + layout.contentRegionHeight / 2,
+          size.height
+        )
       } else {
         XCTAssertLessThanOrEqual(
           layout.contentTop + layout.contentRegionHeight,
           size.height * 0.47,
           "Launch content enters character artwork at \(size)"
         )
+      }
+    }
+  }
+
+  func testFullScreenStartLayoutUsesDesktopScaleAndBalancedPlacement() {
+    let layout = StartLayoutMetrics(size: CGSize(width: 1_637, height: 1_024), safeTop: 0)
+    XCTAssertTrue(layout.isExpandedLandscape)
+    XCTAssertGreaterThanOrEqual(layout.titleSize, 82)
+    XCTAssertGreaterThanOrEqual(layout.playSize, 156)
+    XCTAssertGreaterThan(layout.actionScale, 1)
+    XCTAssertGreaterThanOrEqual(layout.contentWidth, 620)
+    XCTAssertGreaterThan(layout.contentCenter.y, 400)
+    XCTAssertGreaterThanOrEqual(layout.ghostArtworkWidth, 400)
+    XCTAssertGreaterThanOrEqual(layout.pumpkinArtworkWidth, 320)
+  }
+
+  func testGameOverContentInsetsFitEveryResolutionClass() {
+    let sizes = [
+      CGSize(width: 320, height: 568),
+      CGSize(width: 430, height: 720),
+      CGSize(width: 1_024, height: 768),
+      CGSize(width: 1_637, height: 1_024),
+      CGSize(width: 3_440, height: 1_440),
+    ]
+    for size in sizes {
+      let layout = GameOverLayoutMetrics(size: size, safeTop: 24, safeBottom: 16)
+      XCTAssertEqual(
+        layout.topInset + layout.availableHeight + layout.bottomInset,
+        size.height,
+        accuracy: 0.001
+      )
+      XCTAssertGreaterThanOrEqual(layout.cardWidth, 300)
+      XCTAssertLessThanOrEqual(layout.cardWidth, 620)
+      if layout.isWideDesktop {
+        XCTAssertGreaterThanOrEqual(layout.cardWidth, 450)
       }
     }
   }

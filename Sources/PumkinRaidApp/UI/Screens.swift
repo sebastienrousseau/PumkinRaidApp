@@ -11,10 +11,10 @@ struct StartView: View {
     GeometryReader { proxy in
       let layout = StartLayoutMetrics(size: proxy.size, safeTop: proxy.safeAreaInsets.top)
       ZStack {
-        startBackdrop(landscape: layout.isLandscape, size: proxy.size)
+        startBackdrop(layout: layout)
 
         VStack(spacing: layout.isCompact ? 10 : 16) {
-          RaidTitle(compact: layout.isCompact)
+          RaidTitle(fontSize: layout.titleSize)
 
           MoonPlayButton(size: layout.playSize, pulsing: playPulse) {
             model.beginPlayFlow()
@@ -31,6 +31,8 @@ struct StartView: View {
             }
           }
           .buttonStyle(RaidSecondaryButtonStyle())
+          .scaleEffect(layout.actionScale)
+          .padding(.vertical, 34 * (layout.actionScale - 1))
           .accessibilityHint("Opens game mode selection")
         }
         .frame(width: layout.contentWidth, height: layout.contentRegionHeight, alignment: .top)
@@ -39,7 +41,8 @@ struct StartView: View {
         Button {
           model.showSettings()
         } label: {
-          RaidArtworkIconLabel(artName: "setting_tutorial_button", title: "Guide", size: 62)
+          RaidArtworkIconLabel(
+            artName: "setting_tutorial_button", title: "Guide", size: layout.guideSize)
         }
         .buttonStyle(RaidArtworkIconButtonStyle())
         .accessibilityLabel("Settings and game guide")
@@ -63,30 +66,33 @@ struct StartView: View {
   }
 
   @ViewBuilder
-  private func startBackdrop(landscape: Bool, size: CGSize) -> some View {
-    if landscape {
+  private func startBackdrop(layout: StartLayoutMetrics) -> some View {
+    if layout.isLandscape {
       BundledImage(name: "background-wide")
         .scaledToFill()
-        .frame(width: size.width, height: size.height)
+        .frame(width: layout.size.width, height: layout.size.height)
         .clipped()
         .overlay(.black.opacity(0.18))
       ZStack(alignment: .bottom) {
         BundledImage(name: "pumpkin1")
           .scaledToFit()
-          .frame(width: min(180, size.height * 0.25))
-          .offset(x: -min(90, size.width * 0.045), y: -12)
+          .frame(width: layout.pumpkinArtworkWidth)
+          .offset(x: -min(120, layout.size.width * 0.055), y: -12)
         BundledImage(name: "phantom")
           .scaledToFit()
-          .frame(width: min(230, size.height * 0.34))
-          .offset(x: min(80, size.width * 0.04), y: -min(95, size.height * 0.1))
+          .frame(width: layout.ghostArtworkWidth)
+          .offset(
+            x: min(110, layout.size.width * 0.05),
+            y: -min(130, layout.size.height * 0.12)
+          )
       }
-      .frame(width: size.width * 0.46, height: size.height * 0.72)
+      .frame(width: layout.size.width * 0.48, height: layout.size.height * 0.76)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-      .padding(.trailing, max(20, size.width * 0.04))
+      .padding(.trailing, max(20, layout.size.width * 0.035))
     } else {
       BundledImage(name: "splash-backdrop-tablet")
         .scaledToFill()
-        .frame(width: size.width, height: size.height)
+        .frame(width: layout.size.width, height: layout.size.height)
         .clipped()
         .overlay(
           LinearGradient(
@@ -104,6 +110,9 @@ struct SettingsView: View {
 
   var body: some View {
     GeometryReader { proxy in
+      let horizontalInset = max(16, proxy.safeAreaInsets.leading + 12)
+      let verticalInset = max(16, proxy.safeAreaInsets.top + 8)
+      let guideWidth: CGFloat = proxy.size.width >= 1_200 ? 900 : 784
       ZStack {
         guideBackdrop(size: proxy.size)
         ScrollView {
@@ -171,18 +180,21 @@ struct SettingsView: View {
           .toggleStyle(SkullToggleStyle())
           .padding(proxy.size.width < 500 ? 22 : 32)
           .foregroundStyle(.white)
-          .frame(maxWidth: 720)
+          .frame(maxWidth: guideWidth - 64)
           .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
-        .frame(maxWidth: 784, maxHeight: .infinity)
+        .frame(
+          maxWidth: guideWidth,
+          maxHeight: min(900, max(320, proxy.size.height - verticalInset * 2))
+        )
         .background(.black.opacity(0.86), in: RoundedRectangle(cornerRadius: 28))
         .overlay(
           RoundedRectangle(cornerRadius: 28)
             .stroke(RaidTheme.orange.opacity(0.82), lineWidth: 2)
         )
-        .padding(.horizontal, max(16, proxy.safeAreaInsets.leading + 12))
-        .padding(.vertical, max(16, proxy.safeAreaInsets.top + 8))
+        .padding(.horizontal, horizontalInset)
+        .padding(.vertical, verticalInset)
       }
       .frame(width: proxy.size.width, height: proxy.size.height)
     }
@@ -720,17 +732,17 @@ struct GameOverView: View {
 
   var body: some View {
     GeometryReader { proxy in
-      let isLandscape = proxy.size.width / max(1, proxy.size.height) >= 1.15
-      let cardWidth =
-        isLandscape
-        ? min(520, max(340, proxy.size.width * 0.5))
-        : min(560, max(300, proxy.size.width - 48))
+      let layout = GameOverLayoutMetrics(
+        size: proxy.size,
+        safeTop: proxy.safeAreaInsets.top,
+        safeBottom: proxy.safeAreaInsets.bottom
+      )
       let entryLimit = proxy.size.height < 760 ? 2 : proxy.size.height < 980 ? 3 : 5
       let visibleEntries = Array(leaderboard.entries.prefix(entryLimit))
       let rowHeight: CGFloat = proxy.size.height < 760 ? 44 : 54
       ZStack {
-        gameOverBackdrop(isLandscape: isLandscape, size: proxy.size)
-        if isLandscape {
+        gameOverBackdrop(isLandscape: layout.isLandscape, size: proxy.size)
+        if layout.isLandscape {
           Text("GAME OVER")
             .font(RaidTypography.screenTitle)
             .foregroundStyle(.orange)
@@ -743,7 +755,7 @@ struct GameOverView: View {
           ViewThatFits(in: .horizontal) {
             HStack(spacing: 24) {
               leaderboardCard(
-                width: cardWidth,
+                width: layout.cardWidth,
                 rowHeight: rowHeight,
                 visibleEntries: visibleEntries
               )
@@ -751,17 +763,17 @@ struct GameOverView: View {
             }
             VStack(spacing: 18) {
               leaderboardCard(
-                width: cardWidth,
+                width: layout.cardWidth,
                 rowHeight: rowHeight,
                 visibleEntries: visibleEntries
               )
               gameOverActions
             }
           }
-          .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .center)
+          .frame(maxWidth: .infinity, minHeight: layout.availableHeight, alignment: .center)
           .padding(.horizontal, 24)
-          .padding(.top, isLandscape ? 82 : max(170, proxy.size.height * 0.19))
-          .padding(.bottom, 24)
+          .padding(.top, layout.topInset)
+          .padding(.bottom, layout.bottomInset)
         }
         .scrollIndicators(.hidden)
       }

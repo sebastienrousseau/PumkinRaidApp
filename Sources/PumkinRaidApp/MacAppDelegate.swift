@@ -92,7 +92,15 @@
     private func buildMainMenu() {
       let mainMenu = NSMenu()
       let applicationItem = NSMenuItem()
-      let applicationMenu = NSMenu()
+      let applicationMenu = NSMenu(title: "Pumkin Raid")
+      let settingsItem = NSMenuItem(
+        title: "Settings & Guide…",
+        action: #selector(showGuide),
+        keyEquivalent: ","
+      )
+      settingsItem.target = self
+      applicationMenu.addItem(settingsItem)
+      applicationMenu.addItem(.separator())
       applicationMenu.addItem(
         withTitle: "Quit Pumkin Raid",
         action: #selector(NSApplication.terminate(_:)),
@@ -100,6 +108,19 @@
       )
       applicationItem.submenu = applicationMenu
       mainMenu.addItem(applicationItem)
+
+      let viewItem = NSMenuItem()
+      let viewMenu = NSMenu(title: "View")
+      let fullScreenItem = NSMenuItem(
+        title: "Toggle Full Screen",
+        action: #selector(NSWindow.toggleFullScreen(_:)),
+        keyEquivalent: "f"
+      )
+      fullScreenItem.keyEquivalentModifierMask = [.command, .control]
+      fullScreenItem.target = window
+      viewMenu.addItem(fullScreenItem)
+      viewItem.submenu = viewMenu
+      mainMenu.addItem(viewItem)
 
       let controlsItem = NSMenuItem()
       let controlsMenu = NSMenu(title: "Controls")
@@ -118,6 +139,11 @@
     @objc private func startGame() {
       guard model.activeGameScene == nil else { return }
       model.beginGame()
+    }
+
+    @objc private func showGuide() {
+      guard model.activeGameScene == nil else { return }
+      model.showSettings()
     }
   }
 #endif

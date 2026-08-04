@@ -59,33 +59,69 @@ struct StartLayoutMetrics: Equatable {
   let safeTop: CGFloat
 
   var isLandscape: Bool { size.width / max(1, size.height) > 1.15 }
-  var isCompact: Bool { min(size.width, size.height) < 600 || isLandscape }
-  var playSize: CGFloat { min(124, max(88, min(size.width, size.height) * 0.25)) }
+  var isExpandedLandscape: Bool { isLandscape && min(size.width, size.height) >= 700 }
+  var isCompact: Bool { min(size.width, size.height) < 600 }
+  var playSize: CGFloat {
+    if isExpandedLandscape { return min(210, max(156, min(size.width, size.height) * 0.18)) }
+    return min(124, max(88, min(size.width, size.height) * 0.25))
+  }
+  var titleSize: CGFloat {
+    if isExpandedLandscape { return min(104, max(82, min(size.width, size.height) * 0.09)) }
+    return isCompact ? 48 : 72
+  }
+  var actionScale: CGFloat {
+    isExpandedLandscape ? min(1.35, max(1.15, min(size.width, size.height) / 800)) : 1
+  }
+  var guideSize: CGFloat { isExpandedLandscape ? 82 : 62 }
   var contentTop: CGFloat { max(16, safeTop + 12) }
   var contentRegionHeight: CGFloat {
+    if isExpandedLandscape { return min(620, size.height * 0.64) }
     if isLandscape { return min(size.height - contentTop * 2, 390) }
     return min(size.height * 0.47 - contentTop, isCompact ? 300 : 390)
   }
   var contentCenter: CGPoint {
-    CGPoint(
+    let defaultY = contentTop + max(1, contentRegionHeight) / 2
+    return CGPoint(
       x: isLandscape ? size.width * 0.28 : size.width / 2,
-      y: contentTop + max(1, contentRegionHeight) / 2
+      y: isExpandedLandscape ? max(defaultY, size.height * 0.43) : defaultY
     )
   }
   var contentWidth: CGFloat {
-    isLandscape ? min(440, size.width * 0.46) : min(520, size.width - 32)
+    if isExpandedLandscape { return min(680, size.width * 0.46) }
+    return isLandscape ? min(440, size.width * 0.46) : min(520, size.width - 32)
   }
+  var ghostArtworkWidth: CGFloat { min(420, size.height * 0.43) }
+  var pumpkinArtworkWidth: CGFloat { min(330, size.height * 0.33) }
+}
+
+struct GameOverLayoutMetrics: Equatable {
+  let size: CGSize
+  let safeTop: CGFloat
+  let safeBottom: CGFloat
+
+  var isLandscape: Bool { size.width / max(1, size.height) >= 1.15 }
+  var isWideDesktop: Bool { size.width >= 1_200 && size.height >= 700 }
+  var cardWidth: CGFloat {
+    isLandscape
+      ? min(isWideDesktop ? 620 : 520, max(340, size.width * 0.44))
+      : min(560, max(300, size.width - 48))
+  }
+  var topInset: CGFloat {
+    isLandscape ? max(76, safeTop + 18) : max(170, size.height * 0.19)
+  }
+  var bottomInset: CGFloat { max(24, safeBottom + 16) }
+  var availableHeight: CGFloat { max(1, size.height - topInset - bottomInset) }
 }
 
 struct RaidTitle: View {
-  var compact = false
+  let fontSize: CGFloat
 
   var body: some View {
-    VStack(spacing: compact ? -8 : -12) {
+    VStack(spacing: fontSize < 60 ? -8 : -12) {
       Text("PUMKIN")
       Text("RAID")
     }
-    .font(.custom("Creepsville", size: compact ? 48 : 72, relativeTo: .largeTitle))
+    .font(.custom("Creepsville", size: fontSize, relativeTo: .largeTitle))
     .tracking(0.5)
     .foregroundStyle(
       LinearGradient(
