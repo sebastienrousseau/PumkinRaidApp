@@ -29,6 +29,7 @@ recorded. Compilation alone is not a green gate.
 | Web | Green | Optimized Wasm exercised in Chromium, Firefox, and WebKit |
 | Persistence | Green | Versioned migration, corrupt-save recovery, and offline local boards |
 | Social | Green (code) | Optional Game Center with authenticated submission and local fallback |
+| Security | Green | Privacy manifest, sandbox entitlements, and zero-known-vulnerability npm audit |
 | Release | Green (repository) | CI, localization parity, privacy manifest, pure-Swift enforcement |
 
 Human UX studies, signed archives, minimum-device profiling, Game Center/App Store

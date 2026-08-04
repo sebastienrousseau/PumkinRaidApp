@@ -14,3 +14,4 @@
 - Add packaged-resource tests and a nine-language key-parity gate.
 - Exercise Wasm load, start, keyboard, and pointer paths in Chromium, Firefox, and WebKit.
 - Add generated iOS/iPadOS, tvOS, and macOS app targets with release entitlements.
+- Upgrade and audit the web toolchain to maintain a zero-known-vulnerability lockfile.

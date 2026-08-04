@@ -94,6 +94,8 @@ jobs:
         env:
           SWIFT_WASM_SDK: wasm32-unknown-wasi
         run: ./Scripts/build.sh
+      - name: Audit web dependencies
+        run: npm audit --audit-level=low
       - name: Install browser test engines
         run: npx playwright install --with-deps chromium firefox webkit
       - name: Cross-browser input smoke test
