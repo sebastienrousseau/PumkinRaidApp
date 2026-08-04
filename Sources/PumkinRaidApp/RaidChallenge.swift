@@ -15,7 +15,9 @@ struct RaidChallenge: Equatable, Codable {
   }
 
   var code: String {
-    let data = try! JSONEncoder().encode(self)
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    let data = try! encoder.encode(self)
     return data.base64EncodedString()
       .replacingOccurrences(of: "+", with: "-")
       .replacingOccurrences(of: "/", with: "_")

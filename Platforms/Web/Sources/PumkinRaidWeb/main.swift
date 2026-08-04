@@ -92,7 +92,6 @@ private final class BrowserGame {
         timestamp: (event.timeStamp.number ?? 0) / 1_000,
         controlsGhost: true
       )
-      _ = self.canvas.setPointerCapture?(event.pointerId)
       _ = event.preventDefault!()
       return .undefined
     }
@@ -132,6 +131,12 @@ private final class BrowserGame {
     _ = canvas.addEventListener!("pointermove", pointerMove)
     _ = window.addEventListener!("pointerup", pointerUp)
     _ = window.addEventListener!("pointercancel", pointerUp)
+    // Safari/WebKit mouse automation and older desktop engines may not route
+    // synthesized movement through Pointer Events. Duplicate delivery is safe:
+    // down resets the same start point and up is guarded by pointerIsActive.
+    _ = canvas.addEventListener!("mousedown", pointerDown)
+    _ = window.addEventListener!("mousemove", pointerMove)
+    _ = window.addEventListener!("mouseup", pointerUp)
     _ = window.addEventListener!("resize", resizeClosure)
     _ = window.addEventListener!("blur", blur)
     eventClosures += [keyDown, keyUp, pointerDown, pointerMove, pointerUp, resizeClosure, blur]

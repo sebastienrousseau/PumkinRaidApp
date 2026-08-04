@@ -7,6 +7,7 @@ final class RaidChallengeTests: XCTestCase {
   func testChallengeRoundTripsThroughShareCode() {
     let challenge = RaidChallenge(seed: 42, mode: .bossRaid, targetScore: 8_000, replayDigest: 99)
     XCTAssertEqual(RaidChallenge.decode(challenge.code), challenge)
+    XCTAssertEqual(challenge.code, challenge.code, "Challenge encoding must be stable")
     XCTAssertTrue(challenge.shareText.contains("8000-point"))
     XCTAssertTrue(challenge.shareText.contains(challenge.code))
   }
