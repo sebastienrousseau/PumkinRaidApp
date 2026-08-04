@@ -1,0 +1,11 @@
+{
+  "name": "pumkin-raid-web-host",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "pumkin-raid-wasm": "file:.build/plugins/PackageToJS/outputs/Package"
+  },
+  "devDependencies": {
+    "vite": "7.1.1"
+  }
+}

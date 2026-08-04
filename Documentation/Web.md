@@ -7,9 +7,12 @@ Requirements: Swift 6.2 or newer and the matching `wasm32-unknown-wasi` Swift SD
 
 ```sh
 cd Platforms/Web
-swift package js --product PumkinRaidWeb
+./Scripts/build.sh
 ```
 
-Use `Web/index.html` as the custom page and copy `Web/styles.css` beside the generated
-bundle. Serve the output over HTTP; browsers do not load WebAssembly correctly from
-`file://` URLs.
+The script builds an optimized Wasm bundle, resolves the pinned browser shim, and
+uses Vite to produce a self-contained `dist` directory. Serve `dist` over HTTP;
+browsers do not load WebAssembly correctly from `file://` URLs.
+
+On macOS, the cross-compilation host must be the open-source Swift.org toolchain,
+not Xcode's bundled compiler. Swiftly and the Wasm SDK must have matching versions.

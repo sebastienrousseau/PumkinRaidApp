@@ -17,7 +17,8 @@ import SpriteKit
 /// spawn, or resolve collisions independently.
 @MainActor
 final class GameScene: SKScene {
-  var gameOverHandler: ((Int) -> Void)?
+  var gameOverHandler: ((RunSummary) -> Void)?
+  var pauseChangedHandler: ((Bool) -> Void)?
   var authoritativeState: GameState { simulation.state }
 
   private let settings: GameSettings
@@ -38,6 +39,8 @@ final class GameScene: SKScene {
   private var gestureLastPoint: CGPoint?
   private var draggingPhantom = false
   private var gameEnded = false
+  private var systemReducedMotion = false
+  private var systemHighContrast = false
   #if os(iOS)
     private let motionManager = CMMotionManager()
     private var motionIntent = Vector2.zero
@@ -49,12 +52,22 @@ final class GameScene: SKScene {
   private var fixedDelta: TimeInterval {
     1 / Double(simulation.configuration.ticksPerSecond)
   }
+  private var shouldReduceMotion: Bool { settings.reducedMotionEnabled || systemReducedMotion }
+  private var shouldUseHighContrast: Bool { settings.highContrastEnabled || systemHighContrast }
 
   init(settings: GameSettings, mode: GameMode = .classicRaid, seed: UInt64? = nil) {
     self.settings = settings
-    let runSeed = seed
+    let runSeed =
+      seed
       ?? UInt64(Date().timeIntervalSince1970 * 1_000_000) ^ UInt64.random(in: .min ... .max)
-    simulation = GameSimulation(seed: runSeed, mode: mode)
+    simulation = GameSimulation(
+      seed: runSeed,
+      mode: mode,
+      configuration: SimulationConfiguration(
+        movementSpeed: 0.72 * min(1.5, max(0.5, settings.inputSensitivity)),
+        difficultyScale: settings.assistModeEnabled ? 0.72 : 1
+      )
+    )
     super.init(size: CGSize(width: 320, height: 568))
     scaleMode = .resizeFill
     backgroundColor = .black
@@ -103,7 +116,9 @@ final class GameScene: SKScene {
     accumulatedTime += min(0.1, max(0, currentTime - lastUpdateTime))
     lastUpdateTime = currentTime
 
+    let signpost = FrameSignpost.begin()
     var steps = 0
+    defer { FrameSignpost.end(signpost, steps: steps) }
     while accumulatedTime >= fixedDelta, steps < 6 {
       let events = simulation.step(continuousInputFrame())
       handle(events)
@@ -140,8 +155,8 @@ final class GameScene: SKScene {
   }
 
   private func buildHUD() {
-    hudBackground.fillColor = SKColor.black.withAlphaComponent(0.68)
-    hudBackground.strokeColor = SKColor.orange.withAlphaComponent(0.75)
+    hudBackground.fillColor = SKColor.black.withAlphaComponent(shouldUseHighContrast ? 0.92 : 0.68)
+    hudBackground.strokeColor = SKColor.orange.withAlphaComponent(shouldUseHighContrast ? 1 : 0.75)
     hudBackground.lineWidth = 1.5
     hudBackground.zPosition = 19
     addChild(hudBackground)
@@ -262,6 +277,9 @@ final class GameScene: SKScene {
     slicesLabel.text = "Dashes: \(simulation.state.session.slices)"
     boomsLabel.text = "Shrieks: \(simulation.state.session.booms)"
     let state = simulation.state
+    AudioManager.shared.setIntensity(
+      state.frenzyTicksRemaining > 0 ? 1 : min(0.9, Double(state.waveIndex) / 18)
+    )
     if state.frenzyTicksRemaining > 0 {
       statusLabel.text = "FRENZY x2"
       statusLabel.fontColor = .yellow
@@ -278,62 +296,68 @@ final class GameScene: SKScene {
   private func handle(_ events: [GameEvent]) {
     for event in events {
       switch event {
-      case let .destroyed(id, combo, points):
+      case .destroyed(let id, let combo, let points):
         guard let node = pumpkinNodes[id] else { continue }
         let label = combo > 1 ? "DASH x\(combo)  +\(points)" : "DASH!"
         showCallout(label, at: node.position, color: .orange)
         burst(at: node.position, color: .orange, identity: id)
         AudioManager.shared.play("slice", enabled: settings.effectsEnabled)
-      case let .damaged(id, _):
+      case .damaged(let id, _):
         let position = pumpkinNodes[id]?.position ?? phantom.position
         showCallout("OUCH!", at: position, color: .red)
         burst(at: position, color: .red, identity: id)
         AudioManager.shared.play("bow_wah", enabled: settings.effectsEnabled)
         provideHitFeedback()
-        phantom.run(
-          .sequence([
-            .moveBy(x: -7, y: 0, duration: 0.04),
-            .moveBy(x: 14, y: 0, duration: 0.08),
-            .moveBy(x: -7, y: 0, duration: 0.04),
-          ]))
-      case let .armoredHit(id, remaining):
+        if settings.screenShakeEnabled, !shouldReduceMotion {
+          phantom.run(
+            .sequence([
+              .moveBy(x: -7, y: 0, duration: 0.04),
+              .moveBy(x: 14, y: 0, duration: 0.08),
+              .moveBy(x: -7, y: 0, duration: 0.04),
+            ]))
+        }
+      case .armoredHit(let id, let remaining):
         guard let node = pumpkinNodes[id] else { continue }
         showCallout("CRACK!  \(remaining) HIT", at: node.position, color: .cyan)
         node.run(.sequence([.scale(to: 1.18, duration: 0.06), .scale(to: 1, duration: 0.1)]))
         AudioManager.shared.play("bow_wah", enabled: settings.effectsEnabled)
-      case let .cursedTriggered(id, _):
+      case .cursedTriggered(let id, _):
         let position = pumpkinNodes[id]?.position ?? phantom.position
         showCallout("CURSED!", at: position, color: .purple)
         burst(at: position, color: .purple, identity: id)
         AudioManager.shared.play("explode", enabled: settings.effectsEnabled)
         provideHitFeedback()
-      case let .nearMiss(id, points):
+      case .nearMiss(let id, let points):
         let position = pumpkinNodes[id]?.position ?? phantom.position
         showCallout("NEAR MISS +\(points)", at: position, color: .cyan)
-      case let .pickupCollected(id, _, points):
+      case .pickupCollected(let id, _, let points):
         let position = pickupNode?.position ?? phantom.position
         showCallout("SWEET +\(points)", at: position, color: .yellow)
         burst(at: position, color: .yellow, identity: id)
         AudioManager.shared.play("ding", enabled: settings.effectsEnabled)
-      case let .waveStarted(index, pattern):
+      case .waveStarted(let index, let pattern):
         let title = pattern == .breathingSpace ? "BREATHE" : "WAVE \(index)"
         showCallout(title, at: CGPoint(x: size.width / 2, y: size.height * 0.68), color: .white)
       case .frenzyStarted:
-        showCallout("FRENZY x2!", at: CGPoint(x: size.width / 2, y: size.height * 0.58), color: .yellow)
+        showCallout(
+          "FRENZY x2!", at: CGPoint(x: size.width / 2, y: size.height * 0.58), color: .yellow)
         AudioManager.shared.play("ding", enabled: settings.effectsEnabled)
       case .lastChance:
-        showCallout("LAST CHANCE!", at: CGPoint(x: size.width / 2, y: size.height * 0.5), color: .red)
-      case let .dashed(from, to):
+        showCallout(
+          "LAST CHANCE!", at: CGPoint(x: size.width / 2, y: size.height * 0.5), color: .red)
+      case .dashed(let from, let to):
         drawBladeTrail(from: scenePoint(from), to: scenePoint(to))
-      case let .shrieked(origin, count):
+      case .shrieked(let origin, let count):
         guard count > 0 else { continue }
         showCallout("SHRIEK x\(count)!", at: scenePoint(origin), color: .yellow)
         AudioManager.shared.play("explode", enabled: settings.effectsEnabled)
       case .paused:
+        pauseChangedHandler?(true)
         showCallout("PAUSED", at: CGPoint(x: size.width / 2, y: size.height / 2), color: .white)
       case .resumed:
+        pauseChangedHandler?(false)
         showCallout("READY!", at: CGPoint(x: size.width / 2, y: size.height / 2), color: .white)
-      case let .gameOver(score):
+      case .gameOver(let score):
         finishGame(score: score)
       case .spawned, .avoided, .pickupSpawned, .pickupMissed:
         break
@@ -347,7 +371,14 @@ final class GameScene: SKScene {
     stopMotionUpdates()
     AudioManager.shared.stopMusic()
     AudioManager.shared.play("female_scream", enabled: settings.effectsEnabled)
-    run(.sequence([.wait(forDuration: 0.6), .run { [weak self] in self?.gameOverHandler?(score) }]))
+    run(
+      .sequence([
+        .wait(forDuration: 0.6),
+        .run { [weak self] in
+          guard let self else { return }
+          self.gameOverHandler?(self.runSummary(score: score))
+        },
+      ]))
   }
 
   private func showCallout(_ text: String, at position: CGPoint, color: SKColor) {
@@ -360,11 +391,16 @@ final class GameScene: SKScene {
     label.position = position
     label.zPosition = 30
     addChild(label)
-    label.run(
-      .sequence([
-        .group([.moveBy(x: 0, y: 70, duration: 0.7), .fadeOut(withDuration: 0.7)]),
-        .removeFromParent(),
-      ]))
+    if shouldReduceMotion {
+      label.run(
+        .sequence([.wait(forDuration: 0.45), .fadeOut(withDuration: 0.18), .removeFromParent()]))
+    } else {
+      label.run(
+        .sequence([
+          .group([.moveBy(x: 0, y: 70, duration: 0.7), .fadeOut(withDuration: 0.7)]),
+          .removeFromParent(),
+        ]))
+    }
   }
 
   private func drawBladeTrail(from start: CGPoint, to end: CGPoint) {
@@ -381,6 +417,7 @@ final class GameScene: SKScene {
   }
 
   private func burst(at point: CGPoint, color: SKColor, identity: Int) {
+    guard !shouldReduceMotion else { return }
     for index in 0..<14 {
       let particle = SKShapeNode(circleOfRadius: CGFloat(2 + (index % 5)))
       particle.fillColor = color
@@ -501,6 +538,42 @@ final class GameScene: SKScene {
       ))
   }
 
+  func requestPause() {
+    guard !simulation.state.isPaused else { return }
+    inputRouter.enqueue(.pause)
+  }
+
+  func applySystemAccessibility(reduceMotion: Bool, highContrast: Bool) {
+    systemReducedMotion = reduceMotion
+    systemHighContrast = highContrast
+    hudBackground.fillColor = SKColor.black.withAlphaComponent(shouldUseHighContrast ? 0.92 : 0.68)
+    hudBackground.strokeColor = SKColor.orange.withAlphaComponent(shouldUseHighContrast ? 1 : 0.75)
+  }
+
+  func requestResume() {
+    guard simulation.state.isPaused else { return }
+    inputRouter.enqueue(.resume)
+  }
+
+  func abandonRun() {
+    guard !gameEnded else { return }
+    gameEnded = true
+    stopMotionUpdates()
+    AudioManager.shared.stopMusic()
+    gameOverHandler?(runSummary(score: simulation.state.session.score))
+  }
+
+  private func runSummary(score: Int) -> RunSummary {
+    RunSummary(
+      mode: simulation.state.mode,
+      score: score,
+      statistics: simulation.state.statistics,
+      durationTicks: simulation.state.tick,
+      replayDigest: simulation.digest,
+      assisted: settings.assistModeEnabled
+    )
+  }
+
   #if os(iOS) || os(tvOS)
     private func updateDigitalKey(_ keyCode: UIKeyboardHIDUsage, isPressed: Bool) {
       switch keyCode {
@@ -557,7 +630,7 @@ final class GameScene: SKScene {
 
   func startMotionUpdates() {
     #if os(iOS)
-      guard motionManager.isAccelerometerAvailable else { return }
+      guard settings.tiltControlsEnabled, motionManager.isAccelerometerAvailable else { return }
       motionManager.accelerometerUpdateInterval = 1 / 60
       motionManager.startAccelerometerUpdates(to: .main) { [weak self] data, _ in
         guard let self, let acceleration = data?.acceleration, !self.draggingPhantom else { return }
@@ -594,7 +667,8 @@ final class GameScene: SKScene {
     }
 
     func handlePointerDown(at viewPoint: CGPoint) {
-      beginGesture(at: convertPoint(fromView: viewPoint), timestamp: ProcessInfo.processInfo.systemUptime)
+      beginGesture(
+        at: convertPoint(fromView: viewPoint), timestamp: ProcessInfo.processInfo.systemUptime)
     }
 
     func handlePointerDragged(to viewPoint: CGPoint) {
@@ -602,7 +676,8 @@ final class GameScene: SKScene {
     }
 
     func handlePointerUp(at viewPoint: CGPoint) {
-      endGesture(at: convertPoint(fromView: viewPoint), timestamp: ProcessInfo.processInfo.systemUptime)
+      endGesture(
+        at: convertPoint(fromView: viewPoint), timestamp: ProcessInfo.processInfo.systemUptime)
     }
   #endif
 }

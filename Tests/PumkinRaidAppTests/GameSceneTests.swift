@@ -1,5 +1,6 @@
 import GameEngineLib
 import XCTest
+
 @testable import PumkinRaidApp
 
 @MainActor
@@ -39,5 +40,19 @@ final class GameSceneTests: XCTestCase {
       second.update(time)
     }
     XCTAssertEqual(first.authoritativeState, second.authoritativeState)
+  }
+
+  func testPauseAndResumeFlowThroughAuthoritativeEvents() {
+    let scene = GameScene(settings: silentSettings, seed: 15)
+    var pauseStates: [Bool] = []
+    scene.pauseChangedHandler = { pauseStates.append($0) }
+    scene.update(1)
+    scene.requestPause()
+    scene.update(1.02)
+    XCTAssertTrue(scene.authoritativeState.isPaused)
+    scene.requestResume()
+    scene.update(1.04)
+    XCTAssertFalse(scene.authoritativeState.isPaused)
+    XCTAssertEqual(pauseStates, [true, false])
   }
 }

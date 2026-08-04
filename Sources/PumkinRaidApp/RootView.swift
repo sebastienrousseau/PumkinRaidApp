@@ -11,16 +11,25 @@ struct RootView: View {
       switch model.screen {
       case .start:
         StartView()
+      case .tutorial:
+        TutorialView()
       case .settings:
         SettingsView()
       case .modeSelection:
         ModeSelectionView()
+      case .playerHub(let section):
+        PlayerHubView(section: section)
       case .game(let mode):
-        GameView(settings: model.settings, mode: mode) { score in
-          model.finishGame(score: score, mode: mode)
+        GameView(settings: model.settings, mode: mode) { summary in
+          model.finishGame(summary)
         }
-      case .gameOver(let score, let mode, let leaderboard, let entryID):
-        GameOverView(score: score, mode: mode, leaderboard: leaderboard, entryID: entryID)
+      case .gameOver(let summary, let progression, let leaderboard, let entryID):
+        GameOverView(
+          summary: summary,
+          progression: progression,
+          leaderboard: leaderboard,
+          entryID: entryID
+        )
       }
     }
     .id(model.screen.transitionID)
@@ -28,6 +37,7 @@ struct RootView: View {
     .animation(.easeInOut(duration: 0.32), value: model.screen.transitionID)
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Color.black)
+    .onAppear { GameCenterService.shared.authenticate() }
     .onChange(of: model.settings.musicEnabled) { _, enabled in
       if enabled, model.shouldPlayMusic {
         AudioManager.shared.startMusic(enabled: true)
@@ -74,7 +84,7 @@ private struct StartView: View {
             .frame(width: sourceSize.width, height: sourceSize.height)
 
           Button {
-            model.showModeSelection()
+            model.beginPlayFlow()
           } label: {
             ImageButton(name: "button-start", size: playSize / artworkScale)
               .scaleEffect(playPulse ? 1.08 : 0.96)
@@ -135,6 +145,95 @@ private struct StartView: View {
 
 }
 
+private struct TutorialView: View {
+  @EnvironmentObject private var model: AppModel
+  @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
+  @State private var step = 0
+
+  private let lessons: [(symbol: String, title: String, detail: String, accent: Color)] = [
+    (
+      "hand.draw.fill", "Move freely",
+      "Drag the ghost with a finger or mouse. Arrow keys, WASD, a remote, and controllers work too.",
+      .cyan
+    ),
+    (
+      "arrow.up.forward.circle.fill", "Dash through pumpkins",
+      "Swipe quickly or press Space. A dash turns movement into offense and builds your combo.",
+      .orange
+    ),
+    (
+      "waveform.path.ecg", "Shriek when surrounded",
+      "Tap, click, or press Return to spend a shriek and clear nearby danger.", .purple
+    ),
+    (
+      "sparkles", "Chase the flow",
+      "Collect sweets, thread near misses, and chain targets. Every run advances missions and unlocks cosmetics.",
+      .yellow
+    ),
+  ]
+
+  var body: some View {
+    let lesson = lessons[step]
+    ZStack {
+      GameArtwork(name: "background")
+        .overlay(.black.opacity(0.5))
+      VStack(spacing: 24) {
+        Text("GHOST SCHOOL")
+          .font(.system(size: 34, weight: .black, design: .rounded))
+          .foregroundStyle(.orange)
+        HStack(spacing: 7) {
+          ForEach(lessons.indices, id: \.self) { index in
+            Capsule()
+              .fill(index <= step ? Color.orange : Color.white.opacity(0.22))
+              .frame(width: index == step ? 34 : 12, height: 8)
+          }
+        }
+        VStack(spacing: 20) {
+          Image(systemName: lesson.symbol)
+            .font(.system(size: 72, weight: .bold))
+            .foregroundStyle(lesson.accent)
+            .symbolEffect(.bounce, value: step)
+          Text(lesson.title)
+            .font(.system(size: 28, weight: .black, design: .rounded))
+          Text(lesson.detail)
+            .font(.body.weight(.semibold))
+            .foregroundStyle(.white.opacity(0.78))
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 470)
+        }
+        .id(step)
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+        .animation(systemReduceMotion ? nil : .spring(duration: 0.35), value: step)
+        HStack(spacing: 14) {
+          if step > 0 {
+            Button("Back") { step -= 1 }
+              .buttonStyle(.bordered)
+          }
+          Button(step == lessons.count - 1 ? "Choose a raid" : "Next") {
+            if step == lessons.count - 1 {
+              model.completeTutorial()
+            } else {
+              step += 1
+            }
+          }
+          .buttonStyle(.borderedProminent)
+          .tint(.orange)
+        }
+        Button("Skip tutorial") { model.completeTutorial() }
+          .buttonStyle(.plain)
+          .foregroundStyle(.white.opacity(0.7))
+      }
+      .padding(32)
+      .frame(maxWidth: 620)
+      .foregroundStyle(.white)
+      .background(.black.opacity(0.84), in: RoundedRectangle(cornerRadius: 28))
+      .overlay(RoundedRectangle(cornerRadius: 28).stroke(.orange.opacity(0.7), lineWidth: 1.5))
+      .padding(24)
+    }
+    .ignoresSafeArea()
+  }
+}
+
 private struct SettingsView: View {
   @EnvironmentObject private var model: AppModel
 
@@ -149,11 +248,52 @@ private struct SettingsView: View {
           Toggle("Background music", isOn: $model.settings.musicEnabled)
           Toggle("Special effects", isOn: $model.settings.effectsEnabled)
           Toggle("Vibration", isOn: $model.settings.vibrationEnabled)
+          Toggle("Visual sound captions", isOn: $model.settings.captionsEnabled)
+          Divider()
+          Text("ACCESSIBILITY & CONTROLS")
+            .font(.headline.weight(.black))
+            .foregroundStyle(.orange)
+          Toggle("Reduce motion", isOn: $model.settings.reducedMotionEnabled)
+          Toggle("Screen shake", isOn: $model.settings.screenShakeEnabled)
+            .disabled(model.settings.reducedMotionEnabled)
+          Toggle("High contrast", isOn: $model.settings.highContrastEnabled)
+          #if os(iOS)
+            Toggle("Tilt controls", isOn: $model.settings.tiltControlsEnabled)
+          #endif
+          Toggle("Left-handed controls", isOn: $model.settings.leftHandedControls)
+          Toggle("Assist mode (slower raid)", isOn: $model.settings.assistModeEnabled)
+          VStack(alignment: .leading, spacing: 6) {
+            Text("Input sensitivity")
+              .font(.subheadline.weight(.semibold))
+            #if os(tvOS)
+              HStack(spacing: 16) {
+                Button("Less") {
+                  model.settings.inputSensitivity = max(
+                    0.5,
+                    model.settings.inputSensitivity - 0.1
+                  )
+                }
+                .buttonStyle(.bordered)
+                Button("More") {
+                  model.settings.inputSensitivity = min(
+                    1.5,
+                    model.settings.inputSensitivity + 0.1
+                  )
+                }
+                .buttonStyle(.bordered)
+              }
+            #else
+              Slider(value: $model.settings.inputSensitivity, in: 0.5...1.5, step: 0.1)
+            #endif
+            Text("\(model.settings.inputSensitivity, specifier: "%.1fx")")
+              .font(.caption.monospacedDigit())
+              .foregroundStyle(.white.opacity(0.7))
+          }
           Divider()
           VStack(alignment: .leading, spacing: 12) {
-            Label("Move with arrow keys, WASD, tilt, or drag", systemImage: "move.3d")
-            Label("Tap or click pumpkins to use a boom", systemImage: "burst.fill")
-            Label("Swipe through pumpkins to slice them", systemImage: "scribble.variable")
+            Label("Move with arrow keys, WASD, tilt, controller, or drag", systemImage: "move.3d")
+            Label("Tap, click, or press Return to shriek", systemImage: "burst.fill")
+            Label("Swipe or press Space to dash through pumpkins", systemImage: "scribble.variable")
             Label("Collect sweets and build your high score", systemImage: "star.fill")
           }
           .font(.callout.weight(.semibold))
@@ -193,6 +333,30 @@ private struct ModeSelectionView: View {
               .font(.subheadline.weight(.semibold))
               .foregroundStyle(.white.opacity(0.78))
           }
+          HStack(spacing: 12) {
+            Button {
+              model.showPlayerHub(.profile)
+            } label: {
+              Label("Level \(model.progress.level)", systemImage: "person.crop.circle.fill")
+            }
+            Button {
+              model.showPlayerHub(.missions)
+            } label: {
+              Label("Missions", systemImage: "checklist")
+            }
+            Button {
+              model.showPlayerHub(.collection)
+            } label: {
+              Label("\(model.progress.ectoplasm)", systemImage: "sparkles")
+            }
+            Button {
+              GameCenterService.shared.showDashboard()
+            } label: {
+              Label("Game Center", systemImage: "person.2.fill")
+            }
+          }
+          .buttonStyle(.bordered)
+          .tint(.orange)
           LazyVGrid(columns: columns, spacing: 16) {
             modeCard(
               .classicRaid,
@@ -243,7 +407,9 @@ private struct ModeSelectionView: View {
     detail: String,
     symbol: String
   ) -> some View {
-    Button { model.beginGame(mode: mode) } label: {
+    Button {
+      model.beginGame(mode: mode)
+    } label: {
       VStack(alignment: .leading, spacing: 12) {
         Image(systemName: symbol)
           .font(.system(size: 28, weight: .bold))
@@ -271,17 +437,184 @@ private struct ModeSelectionView: View {
   }
 }
 
+private struct PlayerHubView: View {
+  @EnvironmentObject private var model: AppModel
+  let section: AppModel.HubSection
+
+  var body: some View {
+    ZStack {
+      GameArtwork(name: "background")
+        .overlay(.black.opacity(0.5))
+      ScrollView {
+        VStack(spacing: 20) {
+          Text("GHOST LODGE")
+            .font(.system(size: 34, weight: .black, design: .rounded))
+            .foregroundStyle(.orange)
+          Picker("Lodge section", selection: sectionBinding) {
+            ForEach(AppModel.HubSection.allCases, id: \.self) { item in
+              Text(item.rawValue.capitalized).tag(item)
+            }
+          }
+          .pickerStyle(.segmented)
+
+          switch section {
+          case .profile: profile
+          case .missions: missions
+          case .collection: collection
+          }
+
+          Button("Back to modes") { model.showModeSelection() }
+            .buttonStyle(.borderedProminent)
+            .tint(.orange)
+        }
+        .padding(28)
+        .frame(maxWidth: 720)
+        .frame(maxWidth: .infinity)
+      }
+    }
+    .ignoresSafeArea()
+  }
+
+  private var sectionBinding: Binding<AppModel.HubSection> {
+    Binding(get: { section }, set: { model.showPlayerHub($0) })
+  }
+
+  private var profile: some View {
+    VStack(spacing: 16) {
+      Image(systemName: "moon.circle.fill")
+        .font(.system(size: 64))
+        .foregroundStyle(.cyan)
+      Text("LEVEL \(model.progress.level)")
+        .font(.title.weight(.black))
+      ProgressView(value: Double(model.progress.experienceWithinLevel), total: 500)
+        .tint(.orange)
+      Text("\(model.progress.experienceWithinLevel) / 500 XP")
+        .font(.caption.monospacedDigit())
+      HStack(spacing: 24) {
+        lodgeMetric("Raids", model.progress.totalRuns)
+        lodgeMetric("Ectoplasm", model.progress.ectoplasm)
+        lodgeMetric("Unlocks", model.progress.unlockedCosmeticIDs.count)
+      }
+      Divider()
+      ForEach(GameMode.allCases, id: \.self) { mode in
+        HStack {
+          Text(displayName(mode))
+          Spacer()
+          Text("BEST  \(model.progress.bestScores[mode] ?? 0)").monospacedDigit()
+        }
+      }
+    }
+    .lodgeCard()
+  }
+
+  private var missions: some View {
+    VStack(spacing: 12) {
+      ForEach(ProgressionCatalog.missions) { mission in
+        let status =
+          model.progress.missionStatuses.first(where: { $0.id == mission.id })
+          ?? MissionStatus(id: mission.id)
+        VStack(alignment: .leading, spacing: 7) {
+          HStack {
+            Image(systemName: status.isClaimed ? "checkmark.seal.fill" : "circle.dashed")
+              .foregroundStyle(status.isClaimed ? .green : .orange)
+            Text(mission.title).font(.headline)
+            Spacer()
+            Text("+\(mission.rewardEctoplasm)").foregroundStyle(.cyan)
+          }
+          ProgressView(
+            value: Double(min(status.progress, mission.target)), total: Double(mission.target)
+          )
+          .tint(status.isClaimed ? .green : .orange)
+          Text("\(min(status.progress, mission.target)) / \(mission.target)")
+            .font(.caption.monospacedDigit())
+            .foregroundStyle(.white.opacity(0.68))
+        }
+        .padding(15)
+        .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14))
+      }
+    }
+    .lodgeCard()
+  }
+
+  private var collection: some View {
+    LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
+      ForEach(ProgressionCatalog.cosmetics) { item in
+        let unlocked = model.progress.unlockedCosmeticIDs.contains(item.id)
+        let equipped =
+          item.id == model.progress.equippedGhostID
+          || item.id == model.progress.equippedTrailID
+        Button {
+          model.equip(item)
+        } label: {
+          VStack(spacing: 10) {
+            Image(systemName: unlocked ? "sparkles" : "lock.fill")
+              .font(.system(size: 30, weight: .bold))
+              .foregroundStyle(unlocked ? .cyan : .white.opacity(0.4))
+            Text(item.name).font(.headline)
+            Text(
+              equipped
+                ? "EQUIPPED" : unlocked ? "Tap to equip" : "Unlock at level \(item.unlockLevel)"
+            )
+            .font(.caption)
+            .foregroundStyle(equipped ? .orange : .white.opacity(0.62))
+          }
+          .frame(maxWidth: .infinity, minHeight: 125)
+          .padding(12)
+          .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 15))
+          .overlay(
+            RoundedRectangle(cornerRadius: 15)
+              .stroke(equipped ? .orange : .white.opacity(0.12), lineWidth: 1.5)
+          )
+        }
+        .buttonStyle(.plain)
+        .disabled(!unlocked)
+      }
+    }
+    .lodgeCard()
+  }
+
+  private func lodgeMetric(_ title: String, _ value: Int) -> some View {
+    VStack {
+      Text("\(value)").font(.title3.bold()).monospacedDigit()
+      Text(title).font(.caption).foregroundStyle(.white.opacity(0.65))
+    }
+  }
+
+  private func displayName(_ mode: GameMode) -> String {
+    switch mode {
+    case .classicRaid: "Classic Raid"
+    case .moonRush: "Moon Rush"
+    case .spiritZen: "Spirit Zen"
+    case .dailyHaunt: "Daily Haunt"
+    case .bossRaid: "Boss Raid"
+    }
+  }
+}
+
+extension View {
+  fileprivate func lodgeCard() -> some View {
+    padding(20)
+      .foregroundStyle(.white)
+      .background(.black.opacity(0.82), in: RoundedRectangle(cornerRadius: 20))
+      .overlay(RoundedRectangle(cornerRadius: 20).stroke(.orange.opacity(0.55), lineWidth: 1))
+  }
+}
+
 private struct GameView: View {
   @EnvironmentObject private var model: AppModel
+  @Environment(\.scenePhase) private var scenePhase
+  @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
+  @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
   let settings: GameEngineLib.GameSettings
   let mode: GameMode
-  let onGameOver: (Int) -> Void
+  let onGameOver: (RunSummary) -> Void
   @State private var scene: GameScene
+  @State private var isPaused = false
 
   init(
     settings: GameEngineLib.GameSettings,
     mode: GameMode,
-    onGameOver: @escaping (Int) -> Void
+    onGameOver: @escaping (RunSummary) -> Void
   ) {
     self.settings = settings
     self.mode = mode
@@ -299,25 +632,94 @@ private struct GameView: View {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(secondsFromGMT: 0)!
     let components = calendar.dateComponents([.year, .month, .day], from: now)
-    let value = (components.year ?? 0) * 10_000
+    let value =
+      (components.year ?? 0) * 10_000
       + (components.month ?? 0) * 100
       + (components.day ?? 0)
     return UInt64(max(0, value)) ^ 0x4441_494C_595F_5241
   }
 
   var body: some View {
-    Group {
-      #if os(macOS)
-        GameSceneView(scene: scene)
-          .ignoresSafeArea()
-      #else
-        SpriteView(scene: scene, options: [.ignoresSiblingOrder])
-          .ignoresSafeArea()
-      #endif
+    ZStack {
+      Group {
+        #if os(macOS)
+          GameSceneView(scene: scene)
+            .ignoresSafeArea()
+        #else
+          SpriteView(scene: scene, options: [.ignoresSiblingOrder])
+            .ignoresSafeArea()
+        #endif
+      }
+
+      VStack {
+        HStack {
+          Spacer()
+          Button {
+            scene.requestPause()
+          } label: {
+            Image(systemName: "pause.fill")
+              .font(.headline.weight(.black))
+              .frame(width: 42, height: 42)
+              .background(.black.opacity(0.78), in: Circle())
+              .overlay(Circle().stroke(.orange.opacity(0.9), lineWidth: 1.5))
+          }
+          .buttonStyle(.plain)
+          .foregroundStyle(.white)
+          .accessibilityLabel("Pause game")
+          .opacity(isPaused ? 0 : 1)
+          .disabled(isPaused)
+        }
+        Spacer()
+      }
+      .padding(18)
+
+      if isPaused {
+        Color.black.opacity(0.62).ignoresSafeArea()
+        VStack(spacing: 16) {
+          Image(systemName: "moon.zzz.fill")
+            .font(.system(size: 38, weight: .bold))
+            .foregroundStyle(.orange)
+          Text("RAID PAUSED")
+            .font(.system(size: 30, weight: .black, design: .rounded))
+          Text("Your run is safe. Continue when you are ready.")
+            .font(.subheadline)
+            .foregroundStyle(.white.opacity(0.75))
+            .multilineTextAlignment(.center)
+          #if os(tvOS)
+            Button("Resume") { scene.requestResume() }
+              .buttonStyle(.borderedProminent)
+              .tint(.orange)
+          #else
+            Button("Resume") { scene.requestResume() }
+              .buttonStyle(.borderedProminent)
+              .tint(.orange)
+              .keyboardShortcut(.defaultAction)
+          #endif
+          Button("End run") { scene.abandonRun() }
+            .buttonStyle(.bordered)
+          Button("Choose another mode") { model.showModeSelection() }
+            .buttonStyle(.plain)
+            .foregroundStyle(.orange)
+        }
+        .padding(30)
+        .frame(maxWidth: 380)
+        .foregroundStyle(.white)
+        .background(.black.opacity(0.94), in: RoundedRectangle(cornerRadius: 24))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(.orange, lineWidth: 1.5))
+        .padding(24)
+        .transition(.opacity.combined(with: .scale(scale: 0.96)))
+      }
     }
     .onAppear {
       model.activeGameScene = scene
       scene.gameOverHandler = onGameOver
+      scene.pauseChangedHandler = { paused in
+        withAnimation(.easeOut(duration: 0.2)) { isPaused = paused }
+      }
+      scene.applySystemAccessibility(
+        reduceMotion: accessibilityReduceMotion,
+        highContrast: differentiateWithoutColor
+      )
       AudioManager.shared.startMusic(enabled: settings.musicEnabled)
       #if os(macOS)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -327,16 +729,26 @@ private struct GameView: View {
     }
     .onDisappear {
       if model.activeGameScene === scene { model.activeGameScene = nil }
+      scene.pauseChangedHandler = nil
       scene.stopMotionUpdates()
       AudioManager.shared.stopMusic()
+    }
+    .onChange(of: scenePhase) { _, phase in
+      if phase != .active { scene.requestPause() }
+    }
+    .onChange(of: accessibilityReduceMotion) { _, value in
+      scene.applySystemAccessibility(reduceMotion: value, highContrast: differentiateWithoutColor)
+    }
+    .onChange(of: differentiateWithoutColor) { _, value in
+      scene.applySystemAccessibility(reduceMotion: accessibilityReduceMotion, highContrast: value)
     }
   }
 }
 
 private struct GameOverView: View {
   @EnvironmentObject private var model: AppModel
-  let score: Int
-  let mode: GameMode
+  let summary: RunSummary
+  let progression: ProgressionUpdate
   let leaderboard: Leaderboard
   let entryID: UUID
 
@@ -345,7 +757,7 @@ private struct GameOverView: View {
       let cardWidth = min(560, max(300, proxy.size.width - 48))
       let visibleEntries = Array(leaderboard.entries.prefix(proxy.size.height < 620 ? 3 : 5))
       let rowHeight: CGFloat = proxy.size.height < 620 ? 40 : 48
-      let cardHeight = 76 + rowHeight * CGFloat(max(1, visibleEntries.count))
+      let cardHeight = 188 + rowHeight * CGFloat(max(1, visibleEntries.count))
       let centerY = proxy.size.height / 2
       ZStack {
         GameArtwork(name: "gameover")
@@ -362,8 +774,35 @@ private struct GameOverView: View {
           .position(x: proxy.size.width / 2, y: max(58, centerY - cardHeight / 2 - 52))
 
         VStack(spacing: 0) {
+          VStack(spacing: 5) {
+            Text("\(summary.score)")
+              .font(.system(size: 38, weight: .black, design: .rounded))
+              .foregroundStyle(.white)
+              .monospacedDigit()
+            HStack(spacing: 10) {
+              resultMetric("Smashed", summary.statistics.destroyed)
+              resultMetric("Near misses", summary.statistics.nearMisses)
+              resultMetric("Best combo", summary.statistics.bestCombo)
+            }
+            Text(
+              "+\(progression.experienceAwarded) XP  •  +\(progression.ectoplasmAwarded) ectoplasm"
+            )
+            .font(.caption.weight(.bold))
+            .foregroundStyle(.cyan)
+            if summary.assisted {
+              Text("ASSISTED RUN")
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.yellow)
+            } else if progression.isNewBest {
+              Text("NEW PERSONAL BEST")
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.yellow)
+            }
+          }
+          .frame(height: 112)
+
           HStack {
-            Label("LOCAL LEADERBOARD", systemImage: "trophy.fill")
+            Label("\(modeTitle) LEADERBOARD", systemImage: "trophy.fill")
             Spacer()
             Text("BEST  \(leaderboard.bestScore)")
               .monospacedDigit()
@@ -397,7 +836,7 @@ private struct GameOverView: View {
 
         VStack(spacing: 14) {
           Button {
-            model.beginGame(mode: mode)
+            model.beginGame(mode: summary.mode)
           } label: {
             Label("Play again", systemImage: "arrow.clockwise.circle.fill")
               .font(.title3.bold())
@@ -412,7 +851,7 @@ private struct GameOverView: View {
             Button("Home") { model.showStart() }
               .buttonStyle(.bordered)
             #if !os(tvOS)
-              ShareLink(item: "I scored \(score) points in Pumkin Raid!") {
+              ShareLink(item: "I scored \(summary.score) points in Pumkin Raid!") {
                 Label("Share", systemImage: "square.and.arrow.up")
               }
               .buttonStyle(.bordered)
@@ -427,6 +866,24 @@ private struct GameOverView: View {
       }
     }
     .ignoresSafeArea()
+  }
+
+  private var modeTitle: String {
+    switch summary.mode {
+    case .classicRaid: "CLASSIC"
+    case .moonRush: "MOON RUSH"
+    case .spiritZen: "ZEN"
+    case .dailyHaunt: "DAILY"
+    case .bossRaid: "BOSS"
+    }
+  }
+
+  private func resultMetric(_ title: String, _ value: Int) -> some View {
+    VStack(spacing: 1) {
+      Text("\(value)").font(.headline.monospacedDigit())
+      Text(title).font(.caption2).foregroundStyle(.white.opacity(0.65))
+    }
+    .frame(maxWidth: .infinity)
   }
 
   private func leaderboardRow(rank: Int, entry: LeaderboardEntry) -> some View {

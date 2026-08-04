@@ -24,10 +24,52 @@ jobs:
       - name: Build release
         run: swift build -c release
       - name: Test application services
-        run: swift test --parallel
+        run: swift test --parallel --enable-code-coverage
+      - name: Enforce Swift formatting
+        run: swift format lint --strict --recursive Sources Tests
+      - name: Validate privacy manifest
+        run: plutil -lint Sources/PumkinRaidApp/Resources/PrivacyInfo.xcprivacy
+      - name: Compile iOS host
+        run: |
+          IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          swift build --scratch-path .build/ios \
+            --triple arm64-apple-ios17.0 --sdk "$IOS_SDK"
+      - name: Compile tvOS host
+        run: |
+          TVOS_SDK="$(xcrun --sdk appletvos --show-sdk-path)"
+          swift build --scratch-path .build/tvos \
+            --triple arm64-apple-tvos17.0 --sdk "$TVOS_SDK"
       - name: Verify pure Swift sources
         run: |
           if find Sources -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.m' -o -name '*.mm' \) | grep -q .; then
             echo 'Non-Swift source detected under Sources/'
             exit 1
           fi
+
+  web-build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: Platforms/Web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: swiftwasm/setup-swiftwasm@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Platforms/Web/package-lock.json
+      - name: Install Wasm optimizer
+        run: sudo apt-get update && sudo apt-get install -y binaryen
+      - name: Build optimized HTML5 release
+        env:
+          SWIFT_WASM_SDK: wasm32-unknown-wasi
+        run: ./Scripts/build.sh
+      - name: Chromium input smoke test
+        run: |
+          npx vite preview --host 127.0.0.1 --port 8765 &
+          google-chrome --headless=new --disable-gpu --no-first-run \
+            --user-data-dir=/tmp/pumkin-chrome-ci --remote-debugging-port=9222 \
+            http://127.0.0.1:8765/index.html &
+          node Tests/browser-smoke.mjs

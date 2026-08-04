@@ -20,5 +20,10 @@
       <button id="play" type="button">PLAY NOW</button>
     </section>
   </main>
+  <script type="module">
+    import { init } from "pumkin-raid-wasm";
+    await init();
+    document.documentElement.dataset.swiftReady = "true";
+  </script>
 </body>
 </html>

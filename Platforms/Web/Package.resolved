@@ -1,0 +1,33 @@
+{
+  "originHash" : "13dde1feac02910f47632666f597d2710063718167c800aea17ec3c169da5d2f",
+  "pins" : [
+    {
+      "identity" : "gameenginelib",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sebastienrousseau/GameEngineLib.git",
+      "state" : {
+        "revision" : "37c9c76036b1f9e6c98beebc832e0c80b9ac7fec",
+        "version" : "0.4.1"
+      }
+    },
+    {
+      "identity" : "javascriptkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftwasm/JavaScriptKit.git",
+      "state" : {
+        "revision" : "22905075f8b61834810babe5fb9a2f613f22f398",
+        "version" : "0.56.1"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax",
+      "state" : {
+        "revision" : "79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1",
+        "version" : "603.0.2"
+      }
+    }
+  ],
+  "version" : 3
+}

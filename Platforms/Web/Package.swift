@@ -4,11 +4,12 @@ import PackageDescription
 
 let package = Package(
   name: "PumkinRaidWeb",
+  platforms: [.macOS(.v14)],
   products: [
     .executable(name: "PumkinRaidWeb", targets: ["PumkinRaidWeb"])
   ],
   dependencies: [
-    .package(url: "https://github.com/sebastienrousseau/GameEngineLib.git", from: "0.3.0"),
+    .package(url: "https://github.com/sebastienrousseau/GameEngineLib.git", from: "0.4.1"),
     .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", exact: "0.56.1"),
   ],
   targets: [

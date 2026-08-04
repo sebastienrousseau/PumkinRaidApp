@@ -5,6 +5,7 @@
   enum PumkinRaidApp {
     @MainActor
     static func main() {
+      PerformanceMonitor.shared.start()
       let application = PumkinRaidApplication.shared as! PumkinRaidApplication
       let delegate = MacAppDelegate()
       application.delegate = delegate
@@ -18,6 +19,10 @@
   @main
   struct PumkinRaidApp: App {
     @StateObject private var model = AppModel()
+
+    init() {
+      PerformanceMonitor.shared.start()
+    }
 
     var body: some Scene {
       WindowGroup {

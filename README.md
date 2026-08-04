@@ -23,8 +23,13 @@ short sessions that invite one more run.
   pumpkins; every run is unpredictable and reproducible from its seed.
 - Responsive phone, tablet, desktop, TV, and ultrawide layouts with adaptive source
   artwork and normalized gameplay coordinates.
-- Persistent top-ten local leaderboard with stable ranking and current-run emphasis.
-- Swift WebAssembly Canvas host with keyboard, touch, and mouse controls.
+- Versioned profile progression, missions, cosmetic unlocks, and separate assisted
+  and standard top-ten boards for every game mode.
+- Optional Game Center leaderboards and achievements with replay-digest score context.
+- First-run ghost school, pause/resume lifecycle, scalable accessibility controls,
+  reduced motion, high contrast, captions, and input sensitivity.
+- Swift WebAssembly Canvas host with keyboard, touch, and mouse controls, an optimized
+  Vite release bundle, and a real Chromium interaction smoke test.
 - Swift 6 concurrency, deterministic unit tests, CI, security policy, and contributor
   documentation.
 
@@ -91,12 +96,15 @@ The browser build requires Swift 6.2 or newer and its matching WebAssembly SDK. 
 ## Validation
 
 ```sh
-swift build
+swift format lint --strict --recursive Sources Tests
+swift test
+plutil -lint Sources/PumkinRaidApp/Resources/PrivacyInfo.xcprivacy
 ```
 
-The public `GameEngineLib` package owns tests for scoring and inventory boundaries,
-game-over safety, deterministic spawn runs, safe position bounds, combo windows,
-extra lives, and leaderboard ordering.
+The public `GameEngineLib` package owns deterministic rules and fuzz tests. This
+repository additionally tests lifecycle, persistence migration and corruption
+recovery, progression, input routing, scene resizing, Apple SDK compilation, and
+browser startup/input behavior.
 
 ## Product status
 

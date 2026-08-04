@@ -3,14 +3,20 @@ import GameEngineLib
 import JavaScriptEventLoop
 import JavaScriptKit
 
+private func markStartup(_ phase: String) {
+  JSObject.global.document.documentElement.object?.dataset.object?.swiftPhase = .string(phase)
+}
+
+markStartup("executor")
 JavaScriptEventLoop.installGlobalExecutor()
+markStartup("game-construction")
 
 private final class BrowserGame {
   private let window = JSObject.global
   private let document = JSObject.global.document
   private let canvas: JSObject
   private let context: JSObject
-  private var simulation = GameSimulation(seed: 0)
+  private var simulation: GameSimulation
   private var inputRouter = SemanticInputRouter()
   private var pointerIsActive = false
   private var lastTimestamp = 0.0
@@ -20,25 +26,34 @@ private final class BrowserGame {
   private var eventClosures: [JSClosure] = []
 
   init?() {
+    markStartup("simulation")
+    let initialSimulation = GameSimulation(seed: 0)
+    markStartup("dom")
     guard
-      let canvas = document.getElementById("game")?.object,
+      let canvas = document.getElementById("game").object,
       let context = canvas.getContext!("2d").object
     else { return nil }
     self.canvas = canvas
     self.context = context
+    self.simulation = initialSimulation
+    markStartup("input")
     installInput()
+    markStartup("start-button")
     installStartButton()
+    markStartup("resize")
     resize()
+    markStartup("render")
     render()
+    markStartup("ready")
   }
 
   private func installStartButton() {
-    guard let button = document.getElementById("play")?.object else { return }
+    guard let button = document.getElementById("play").object else { return }
     let closure = JSClosure { [weak self] _ in
       self?.start()
       return .undefined
     }
-    button.onclick = .object(closure)
+    button.onclick = JSValue.object(closure)
     eventClosures.append(closure)
   }
 
@@ -49,7 +64,7 @@ private final class BrowserGame {
       }
       let normalized = key.lowercased()
       self.setKey(normalized, pressed: true, isRepeat: event.repeat.boolean == true)
-      event.preventDefault!()
+      _ = event.preventDefault!()
       return .undefined
     }
     let keyUp = JSClosure { [weak self] arguments in
@@ -69,8 +84,8 @@ private final class BrowserGame {
         timestamp: (event.timeStamp.number ?? 0) / 1_000,
         controlsGhost: (dx * dx + dy * dy).squareRoot() <= 0.14
       )
-      self.canvas.setPointerCapture?(event.pointerId)
-      event.preventDefault!()
+      _ = self.canvas.setPointerCapture?(event.pointerId)
+      _ = event.preventDefault!()
       return .undefined
     }
     let pointerMove = JSClosure { [weak self] arguments in
@@ -78,7 +93,7 @@ private final class BrowserGame {
         return .undefined
       }
       self.inputRouter.movePointer(to: self.normalizedPointer(event))
-      event.preventDefault!()
+      _ = event.preventDefault!()
       return .undefined
     }
     let pointerUp = JSClosure { [weak self] arguments in
@@ -88,7 +103,7 @@ private final class BrowserGame {
       let end = self.normalizedPointer(event)
       self.inputRouter.endPointer(at: end, timestamp: (event.timeStamp.number ?? 0) / 1_000)
       self.pointerIsActive = false
-      event.preventDefault!()
+      _ = event.preventDefault!()
       return .undefined
     }
     let resizeClosure = JSClosure { [weak self] _ in
@@ -103,14 +118,14 @@ private final class BrowserGame {
       }
       return .undefined
     }
-    window.addEventListener!("keydown", keyDown)
-    window.addEventListener!("keyup", keyUp)
-    canvas.addEventListener!("pointerdown", pointerDown)
-    canvas.addEventListener!("pointermove", pointerMove)
-    window.addEventListener!("pointerup", pointerUp)
-    window.addEventListener!("pointercancel", pointerUp)
-    window.addEventListener!("resize", resizeClosure)
-    window.addEventListener!("blur", blur)
+    _ = window.addEventListener!("keydown", keyDown)
+    _ = window.addEventListener!("keyup", keyUp)
+    _ = canvas.addEventListener!("pointerdown", pointerDown)
+    _ = canvas.addEventListener!("pointermove", pointerMove)
+    _ = window.addEventListener!("pointerup", pointerUp)
+    _ = window.addEventListener!("pointercancel", pointerUp)
+    _ = window.addEventListener!("resize", resizeClosure)
+    _ = window.addEventListener!("blur", blur)
     eventClosures += [keyDown, keyUp, pointerDown, pointerMove, pointerUp, resizeClosure, blur]
   }
 
@@ -122,7 +137,7 @@ private final class BrowserGame {
     lastTimestamp = 0
     accumulator = 0
     running = true
-    document.getElementById("menu")?.object?.classList.add!("hidden")
+    _ = document.getElementById("menu").object?.classList.add("hidden")
     scheduleFrame()
   }
 
@@ -131,7 +146,7 @@ private final class BrowserGame {
       self?.tick(timestamp: arguments.first?.number ?? 0)
       return .undefined
     }
-    window.requestAnimationFrame!(frameClosure!)
+    _ = window.requestAnimationFrame!(frameClosure!)
   }
 
   private func tick(timestamp: Double) {
@@ -150,8 +165,8 @@ private final class BrowserGame {
     updateHUD()
     if simulation.state.isGameOver {
       running = false
-      document.getElementById("menu")?.object?.classList.remove!("hidden")
-      document.getElementById("play")?.object?.innerText = "PLAY AGAIN"
+      _ = document.getElementById("menu").object?.classList.remove("hidden")
+      document.getElementById("play").object?.innerText = .string("PLAY AGAIN")
     } else {
       scheduleFrame()
     }
@@ -192,10 +207,10 @@ private final class BrowserGame {
     let width = canvas.width.number ?? 1
     let height = canvas.height.number ?? 1
     let gradient = context.createLinearGradient!(0, 0, 0, height).object!
-    gradient.addColorStop!(0, "#071021")
-    gradient.addColorStop!(1, "#27070a")
+    _ = gradient.addColorStop!(0, "#071021")
+    _ = gradient.addColorStop!(1, "#27070a")
     context.fillStyle = .object(gradient)
-    context.fillRect!(0, 0, width, height)
+    _ = context.fillRect!(0, 0, width, height)
 
     for pumpkin in simulation.state.pumpkins {
       let x = pumpkin.position.x * width
@@ -212,22 +227,22 @@ private final class BrowserGame {
         case .heavy: context.fillStyle = "#9f3d12"
         }
       }
-      context.beginPath!()
-      context.ellipse!(x, y, radius, radius * 0.82, 0, 0, Double.pi * 2)
-      context.fill!()
+      _ = context.beginPath!()
+      _ = context.ellipse!(x, y, radius, radius * 0.82, 0, 0, Double.pi * 2)
+      _ = context.fill!()
     }
 
     if let pickup = simulation.state.pickup {
       context.fillStyle = ["#ffe16a", "#64e8ff", "#ff72c6"][pickup.kind]
-      context.beginPath!()
-      context.arc!(
+      _ = context.beginPath!()
+      _ = context.arc!(
         pickup.position.x * width,
         pickup.position.y * height,
         min(width, height) * 0.027,
         0,
         Double.pi * 2
       )
-      context.fill!()
+      _ = context.fill!()
     }
 
     let ghost = simulation.state.ghost.position
@@ -235,20 +250,20 @@ private final class BrowserGame {
     let y = ghost.y * height
     let radius = min(width, height) * 0.045
     context.fillStyle = "rgba(210, 239, 255, .92)"
-    context.beginPath!()
-    context.arc!(x, y, radius, 0, Double.pi * 2)
-    context.fill!()
+    _ = context.beginPath!()
+    _ = context.arc!(x, y, radius, 0, Double.pi * 2)
+    _ = context.fill!()
     context.fillStyle = "#071021"
-    context.beginPath!()
-    context.arc!(x - radius * 0.34, y - radius * 0.12, radius * 0.1, 0, Double.pi * 2)
-    context.arc!(x + radius * 0.34, y - radius * 0.12, radius * 0.1, 0, Double.pi * 2)
-    context.fill!()
+    _ = context.beginPath!()
+    _ = context.arc!(x - radius * 0.34, y - radius * 0.12, radius * 0.1, 0, Double.pi * 2)
+    _ = context.arc!(x + radius * 0.34, y - radius * 0.12, radius * 0.1, 0, Double.pi * 2)
+    _ = context.fill!()
   }
 
   private func updateHUD() {
     let session = simulation.state.session
-    document.getElementById("score")?.object?.innerText = "SCORE  \(session.score)"
-    document.getElementById("lives")?.object?.innerText = "LIVES  \(session.lives)"
+    document.getElementById("score").object?.innerText = .string("SCORE  \(session.score)")
+    document.getElementById("lives").object?.innerText = .string("LIVES  \(session.lives)")
   }
 }
 
