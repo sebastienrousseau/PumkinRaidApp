@@ -17,8 +17,17 @@ struct RootView: View {
         ModeSelectionView()
       case .playerHub(let section):
         PlayerHubView(section: section)
-      case .game(let mode):
-        GameView(settings: model.settings, mode: mode) { summary in
+      case .game(let mode, let seed):
+        GameView(
+          settings: model.settings,
+          mode: mode,
+          seed: seed,
+          cosmetics: CosmeticLoadout(
+            ghostID: model.progress.equippedGhostID,
+            trailID: model.progress.equippedTrailID,
+            auraID: model.equippedAuraID
+          )
+        ) { summary in
           model.finishGame(summary)
         }
       case .gameOver(let summary, let progression, let leaderboard, let entryID):

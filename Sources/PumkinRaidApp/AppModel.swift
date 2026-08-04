@@ -16,7 +16,7 @@ final class AppModel: ObservableObject {
     case settings
     case modeSelection
     case playerHub(section: HubSection)
-    case game(mode: GameMode)
+    case game(mode: GameMode, seed: UInt64?)
     case gameOver(
       summary: RunSummary,
       progression: ProgressionUpdate,
@@ -31,7 +31,7 @@ final class AppModel: ObservableObject {
       case .settings: "settings"
       case .modeSelection: "modeSelection"
       case .playerHub(let section): "hub-\(section.rawValue)"
-      case .game(let mode): "game-\(mode.rawValue)"
+      case .game(let mode, let seed): "game-\(mode.rawValue)-\(seed.map(String.init) ?? "random")"
       case .gameOver: "gameOver"
       }
     }
@@ -42,6 +42,9 @@ final class AppModel: ObservableObject {
   @Published private(set) var leaderboard: Leaderboard
   @Published private(set) var progress: PlayerProgress
   @Published private(set) var hasCompletedTutorial: Bool
+  @Published private(set) var equippedAuraID: String
+  @Published private(set) var dailyChallenge: DailyChallengeState
+  @Published private(set) var lastChallenge: RaidChallenge?
   private var leaderboardStore: LocalLeaderboardStore
   private let scoreSubmitter: any CompetitiveScoreSubmitting
   weak var activeGameScene: GameScene?
@@ -53,6 +56,8 @@ final class AppModel: ObservableObject {
   private static let leaderboardStoreKey = "PumkinRaidApp.leaderboards.v2"
   private static let progressKey = "PumkinRaidApp.progress.v1"
   private static let tutorialKey = "PumkinRaidApp.tutorial.v1"
+  private static let auraKey = "PumkinRaidApp.cosmetic.aura.v1"
+  private static let dailyChallengeKey = "PumkinRaidApp.dailyChallenge.v1"
 
   init(
     defaults: UserDefaults = .standard,
@@ -61,6 +66,11 @@ final class AppModel: ObservableObject {
     self.defaults = defaults
     self.scoreSubmitter = scoreSubmitter
     hasCompletedTutorial = defaults.bool(forKey: Self.tutorialKey)
+    equippedAuraID = defaults.string(forKey: Self.auraKey) ?? "aura.none"
+    dailyChallenge =
+      defaults.data(forKey: Self.dailyChallengeKey)
+      .flatMap { VersionedSave<DailyChallengeState>.decode($0) } ?? DailyChallengeState()
+    lastChallenge = nil
     if let data = defaults.data(forKey: Self.leaderboardStoreKey),
       let decoded = VersionedSave<LocalLeaderboardStore>.decode(data)
     {
@@ -107,7 +117,9 @@ final class AppModel: ObservableObject {
     screen = .modeSelection
   }
   func showPlayerHub(_ section: HubSection = .profile) { screen = .playerHub(section: section) }
-  func beginGame(mode: GameMode = .classicRaid) { screen = .game(mode: mode) }
+  func beginGame(mode: GameMode = .classicRaid, seed: UInt64? = nil) {
+    screen = .game(mode: mode, seed: seed)
+  }
   func showSettings() { screen = .settings }
   func showStart() { screen = .start }
 
@@ -126,6 +138,13 @@ final class AppModel: ObservableObject {
     leaderboardStore.submit(entry, mode: summary.mode, assisted: summary.assisted)
     leaderboard = leaderboardStore.leaderboard(for: summary.mode, assisted: summary.assisted)
     let progression = ProgressionSystem.apply(summary, to: &progress)
+    if summary.mode == .dailyHaunt {
+      let reward = dailyChallenge.complete(
+        day: DailyChallengeState.utcDay(),
+        score: summary.score
+      )
+      progress.ectoplasm += reward
+    }
     scoreSubmitter.submit(summary)
     persistProfile()
     screen = .gameOver(
@@ -152,12 +171,18 @@ final class AppModel: ObservableObject {
     leaderboardStore.leaderboard(for: mode, assisted: assisted)
   }
 
+  func captureChallenge(_ challenge: RaidChallenge) {
+    lastChallenge = challenge
+  }
+
   func equip(_ item: CosmeticItem) {
     guard progress.unlockedCosmeticIDs.contains(item.id) else { return }
     switch item.category {
     case .ghost: progress.equippedGhostID = item.id
     case .trail: progress.equippedTrailID = item.id
-    case .aura: break
+    case .aura:
+      equippedAuraID = item.id
+      defaults.set(item.id, forKey: Self.auraKey)
     }
     persistProfile()
   }
@@ -183,6 +208,9 @@ final class AppModel: ObservableObject {
     }
     if let data = VersionedSave<PlayerProgress>.encode(progress) {
       defaults.set(data, forKey: Self.progressKey)
+    }
+    if let data = VersionedSave<DailyChallengeState>.encode(dailyChallenge) {
+      defaults.set(data, forKey: Self.dailyChallengeKey)
     }
   }
 }

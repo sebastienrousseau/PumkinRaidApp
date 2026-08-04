@@ -17,6 +17,7 @@ private final class BrowserGame {
   private let canvas: JSObject
   private let context: JSObject
   private var simulation: GameSimulation
+  private var currentMode = GameMode.classicRaid
   private var inputRouter = SemanticInputRouter()
   private var pointerIsActive = false
   private var lastTimestamp = 0.0
@@ -38,8 +39,8 @@ private final class BrowserGame {
     self.simulation = initialSimulation
     markStartup("input")
     installInput()
-    markStartup("start-button")
-    installStartButton()
+    markStartup("mode-buttons")
+    installModeButtons()
     markStartup("resize")
     resize()
     markStartup("render")
@@ -47,14 +48,24 @@ private final class BrowserGame {
     markStartup("ready")
   }
 
-  private func installStartButton() {
-    guard let button = document.getElementById("play").object else { return }
-    let closure = JSClosure { [weak self] _ in
-      self?.start()
-      return .undefined
+  private func installModeButtons() {
+    let buttons: [(String, GameMode)] = [
+      ("play", .classicRaid),
+      ("moon", .moonRush),
+      ("zen", .spiritZen),
+      ("daily", .dailyHaunt),
+      ("boss", .bossRaid),
+    ]
+    for (identifier, mode) in buttons {
+      guard let button = document.getElementById(identifier).object else { continue }
+      let closure = JSClosure { [weak self] _ in
+        self?.start(mode: mode)
+        return .undefined
+      }
+      button.onclick = JSValue.object(closure)
+      eventClosures.append(closure)
     }
-    button.onclick = JSValue.object(closure)
-    eventClosures.append(closure)
+    updateBestScore()
   }
 
   private func installInput() {
@@ -129,15 +140,20 @@ private final class BrowserGame {
     eventClosures += [keyDown, keyUp, pointerDown, pointerMove, pointerUp, resizeClosure, blur]
   }
 
-  private func start() {
-    let seed = UInt64(Date.now.timeIntervalSince1970 * 1_000_000)
-    simulation = GameSimulation(seed: seed)
+  private func start(mode: GameMode) {
+    currentMode = mode
+    let seed =
+      mode == .dailyHaunt
+      ? dailySeed()
+      : UInt64(Date.now.timeIntervalSince1970 * 1_000_000)
+    simulation = GameSimulation(seed: seed, mode: mode)
     inputRouter.cancelAll()
     pointerIsActive = false
     lastTimestamp = 0
     accumulator = 0
     running = true
     _ = document.getElementById("menu").object?.classList.add("hidden")
+    _ = document.getElementById("music").object?.play?()
     scheduleFrame()
   }
 
@@ -157,7 +173,15 @@ private final class BrowserGame {
     let fixedDelta = 1 / Double(simulation.configuration.ticksPerSecond)
     var steps = 0
     while accumulator >= fixedDelta, steps < 6 {
-      _ = simulation.step(inputRouter.nextFrame())
+      let events = simulation.step(inputRouter.nextFrame())
+      if events.contains(where: {
+        if case .destroyed = $0 { return true }
+        return false
+      }) {
+        let sound = document.getElementById("slice-sound").object
+        sound?.currentTime = 0
+        _ = sound?.play?()
+      }
       accumulator -= fixedDelta
       steps += 1
     }
@@ -165,8 +189,10 @@ private final class BrowserGame {
     updateHUD()
     if simulation.state.isGameOver {
       running = false
+      saveBestScore(simulation.state.session.score)
+      document.getElementById("music").object?.pause?()
       _ = document.getElementById("menu").object?.classList.remove("hidden")
-      document.getElementById("play").object?.innerText = .string("PLAY AGAIN")
+      document.getElementById("play").object?.innerText = .string("PLAY CLASSIC AGAIN")
     } else {
       scheduleFrame()
     }
@@ -206,30 +232,27 @@ private final class BrowserGame {
   private func render() {
     let width = canvas.width.number ?? 1
     let height = canvas.height.number ?? 1
+    _ = context.clearRect!(0, 0, width, height)
     let gradient = context.createLinearGradient!(0, 0, 0, height).object!
-    _ = gradient.addColorStop!(0, "#071021")
-    _ = gradient.addColorStop!(1, "#27070a")
+    _ = gradient.addColorStop!(0, "rgba(7,16,33,.35)")
+    _ = gradient.addColorStop!(1, "rgba(39,7,10,.72)")
     context.fillStyle = .object(gradient)
+    _ = context.fillRect!(0, 0, width, height)
+    context.fillStyle = .string(modeTint(currentMode))
     _ = context.fillRect!(0, 0, width, height)
 
     for pumpkin in simulation.state.pumpkins {
       let x = pumpkin.position.x * width
       let y = pumpkin.position.y * height
       let radius = pumpkin.radius * min(width, height)
-      switch pumpkin.kind {
-      case .armored: context.fillStyle = "#788596"
-      case .cursed: context.fillStyle = "#9228b5"
-      case .target:
-        switch pumpkin.archetype {
-        case .standard: context.fillStyle = "#ff7a00"
-        case .swift: context.fillStyle = "#ffb000"
-        case .drifting: context.fillStyle = "#ef4b22"
-        case .heavy: context.fillStyle = "#9f3d12"
-        }
+      let frame = (simulation.state.tick / 10 + pumpkin.id) % 3 + 1
+      if let image = document.getElementById("pumpkin-sprite-\(frame)").object,
+        image.complete.boolean == true
+      {
+        context.globalAlpha = pumpkin.kind == .target ? 1 : 0.72
+        _ = context.drawImage!(image, x - radius, y - radius, radius * 2, radius * 2)
+        context.globalAlpha = 1
       }
-      _ = context.beginPath!()
-      _ = context.ellipse!(x, y, radius, radius * 0.82, 0, 0, Double.pi * 2)
-      _ = context.fill!()
     }
 
     if let pickup = simulation.state.pickup {
@@ -246,24 +269,68 @@ private final class BrowserGame {
     }
 
     let ghost = simulation.state.ghost.position
+    document.documentElement.object?.dataset.object?.ghostX = .string(String(ghost.x))
+    document.documentElement.object?.dataset.object?.ghostY = .string(String(ghost.y))
     let x = ghost.x * width
     let y = ghost.y * height
     let radius = min(width, height) * 0.045
-    context.fillStyle = "rgba(210, 239, 255, .92)"
-    _ = context.beginPath!()
-    _ = context.arc!(x, y, radius, 0, Double.pi * 2)
-    _ = context.fill!()
-    context.fillStyle = "#071021"
-    _ = context.beginPath!()
-    _ = context.arc!(x - radius * 0.34, y - radius * 0.12, radius * 0.1, 0, Double.pi * 2)
-    _ = context.arc!(x + radius * 0.34, y - radius * 0.12, radius * 0.1, 0, Double.pi * 2)
-    _ = context.fill!()
+    if let image = document.getElementById("ghost-sprite").object,
+      image.complete.boolean == true
+    {
+      _ = context.drawImage!(image, x - radius, y - radius, radius * 2, radius * 2)
+    }
   }
 
   private func updateHUD() {
     let session = simulation.state.session
     document.getElementById("score").object?.innerText = .string("SCORE  \(session.score)")
     document.getElementById("lives").object?.innerText = .string("LIVES  \(session.lives)")
+    document.getElementById("charges").object?.innerText = .string(
+      "DASH  \(session.slices)  ·  SHRIEK  \(session.booms)"
+    )
+    document.getElementById("mode").object?.innerText = .string(modeTitle(currentMode))
+  }
+
+  private func modeTitle(_ mode: GameMode) -> String {
+    switch mode {
+    case .classicRaid: "CLASSIC RAID"
+    case .moonRush: "MOON RUSH"
+    case .spiritZen: "SPIRIT ZEN"
+    case .dailyHaunt: "DAILY HAUNT"
+    case .bossRaid: "BOSS RAID"
+    }
+  }
+
+  private func modeTint(_ mode: GameMode) -> String {
+    switch mode {
+    case .classicRaid: "rgba(0,0,0,0)"
+    case .moonRush: "rgba(255,86,10,.07)"
+    case .spiritZen: "rgba(40,190,240,.07)"
+    case .dailyHaunt: "rgba(130,40,220,.09)"
+    case .bossRaid: "rgba(190,0,0,.12)"
+    }
+  }
+
+  private func dailySeed() -> UInt64 {
+    let days = Int(Date.now.timeIntervalSince1970 / 86_400)
+    return UInt64(max(0, days)) ^ 0x4441_494C_595F_5241
+  }
+
+  private func saveBestScore(_ score: Int) {
+    guard let storage = window.localStorage.object else { return }
+    let key = "pumkinRaid.best.\(currentMode.rawValue)"
+    let previous = Int(storage.getItem!(key).string ?? "0") ?? 0
+    _ = storage.setItem!(key, String(max(score, previous)))
+    updateBestScore()
+  }
+
+  private func updateBestScore() {
+    guard let storage = window.localStorage.object else { return }
+    let best =
+      GameMode.allCases.map {
+        Int(storage.getItem!("pumkinRaid.best.\($0.rawValue)").string ?? "0") ?? 0
+      }.max() ?? 0
+    document.getElementById("best").object?.innerText = .string(String(best))
   }
 }
 

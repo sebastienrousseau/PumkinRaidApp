@@ -26,6 +26,7 @@ final class AppModelTests: XCTestCase {
   func testDefaultsToStartScreenAndDefaultSettings() {
     let model = makeModel()
     XCTAssertEqual(model.settings, GameSettings())
+    XCTAssertEqual(model.equippedAuraID, "aura.none")
     if case .start = model.screen {} else { XCTFail("Expected start screen") }
   }
 
@@ -90,7 +91,10 @@ final class AppModelTests: XCTestCase {
     model.showModeSelection()
     if case .modeSelection = model.screen {} else { XCTFail("Expected mode selection") }
     model.beginGame(mode: .moonRush)
-    if case .game(mode: .moonRush) = model.screen {} else { XCTFail("Expected Moon Rush") }
+    if case .game(mode: .moonRush, seed: nil) = model.screen {
+    } else {
+      XCTFail("Expected Moon Rush")
+    }
   }
 
   func testEveryNavigationStateHasAStableTransitionIdentifier() {
@@ -105,7 +109,12 @@ final class AppModelTests: XCTestCase {
     model.showPlayerHub(.missions)
     XCTAssertEqual(model.screen.transitionID, "hub-missions")
     model.beginGame(mode: .bossRaid)
-    XCTAssertEqual(model.screen.transitionID, "game-bossRaid")
+    XCTAssertEqual(model.screen.transitionID, "game-bossRaid-random")
+    model.beginGame(mode: .bossRaid, seed: 42)
+    XCTAssertEqual(model.screen.transitionID, "game-bossRaid-42")
+    let challenge = RaidChallenge(seed: 42, mode: .bossRaid, targetScore: 1, replayDigest: 2)
+    model.captureChallenge(challenge)
+    XCTAssertEqual(model.lastChallenge, challenge)
     XCTAssertTrue(model.shouldPlayMusic)
     model.finishGame(score: 1)
     XCTAssertEqual(model.screen.transitionID, "gameOver")
@@ -131,7 +140,8 @@ final class AppModelTests: XCTestCase {
   }
 
   func testCosmeticsOnlyEquipWhenUnlockedAndUseTheirCategory() {
-    let model = makeModel()
+    let defaults = makeDefaults()
+    let model = makeModel(defaults: defaults)
     let locked = CosmeticItem(id: "ghost.locked", name: "Locked", category: .ghost, unlockLevel: 99)
     model.equip(locked)
     XCTAssertEqual(model.progress.equippedGhostID, "ghost.classic")
@@ -145,6 +155,8 @@ final class AppModelTests: XCTestCase {
     let aura = ProgressionCatalog.cosmetics.first { $0.id == "aura.frenzy" }!
     XCTAssertTrue(model.progress.unlockedCosmeticIDs.contains(aura.id))
     model.equip(aura)
+    XCTAssertEqual(model.equippedAuraID, aura.id)
+    XCTAssertEqual(makeModel(defaults: defaults).equippedAuraID, aura.id)
   }
 
   func testInactiveSceneInputAdaptersAreSafeNoOps() {
@@ -213,5 +225,18 @@ final class AppModelTests: XCTestCase {
       ))
     XCTAssertEqual(model.leaderboard(for: .classicRaid).bestScore, 0)
     XCTAssertEqual(model.leaderboard(for: .classicRaid, assisted: true).bestScore, 999)
+  }
+
+  func testDailyChallengeStreakAndBestPersistWithRunRewards() {
+    let defaults = makeDefaults()
+    let model = makeModel(defaults: defaults)
+    let before = model.progress.ectoplasm
+    model.finishGame(score: 2_500, mode: .dailyHaunt)
+    XCTAssertEqual(model.dailyChallenge.streak, 1)
+    XCTAssertEqual(model.dailyChallenge.bestScore, 2_500)
+    XCTAssertGreaterThan(model.progress.ectoplasm, before)
+
+    let restored = makeModel(defaults: defaults)
+    XCTAssertEqual(restored.dailyChallenge, model.dailyChallenge)
   }
 }

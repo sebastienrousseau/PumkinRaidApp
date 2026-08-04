@@ -31,6 +31,8 @@ jobs:
         run: plutil -lint Sources/PumkinRaidApp/Resources/PrivacyInfo.xcprivacy
       - name: Validate localization parity
         run: ./Scripts/validate-localizations.sh
+      - name: Validate licensed asset integrity and budgets
+        run: ./Scripts/validate-assets.sh
       - name: Compile iOS host
         run: |
           IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-path)"

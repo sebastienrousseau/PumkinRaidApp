@@ -21,6 +21,7 @@ enum AssetLoader {
   static func imageURL(_ name: String) -> URL? {
     let bundle = Bundle.pumkinRaidResources
     return bundle.url(forResource: name, withExtension: "png", subdirectory: "Images")
+      ?? bundle.url(forResource: name, withExtension: "png", subdirectory: "Images/Adaptive")
       ?? bundle.url(forResource: name, withExtension: "jpg", subdirectory: "Images/Adaptive")
       ?? bundle.url(forResource: name, withExtension: "png")
       ?? bundle.url(forResource: name, withExtension: "jpg")

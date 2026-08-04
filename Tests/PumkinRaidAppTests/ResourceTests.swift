@@ -11,6 +11,7 @@ final class ResourceTests: XCTestCase {
       ("background-tablet", "jpg"),
       ("background-wide", "jpg"),
       ("splashscreen", "png"),
+      ("splash-backdrop-tablet", "png"),
       ("phantom", "png"),
       ("pumpkin1", "png"),
       ("pumpkin2", "png"),

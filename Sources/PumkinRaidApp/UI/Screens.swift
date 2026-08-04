@@ -4,175 +4,84 @@ import SwiftUI
 
 struct StartView: View {
   @EnvironmentObject private var model: AppModel
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var playPulse = false
 
   var body: some View {
     GeometryReader { proxy in
-      let sourceSize = CGSize(width: 640, height: 960)
-      let artworkScale = min(
-        proxy.size.width / sourceSize.width,
-        proxy.size.height / sourceSize.height
-      )
-      let playSize = min(proxy.size.width * 0.34, 160)
-      let labelOffset = min(105, proxy.size.height * 0.15)
+      let shortSide = min(proxy.size.width, proxy.size.height)
+      let playSize = min(172, max(112, shortSide * 0.29))
+      let landscape = proxy.size.width / max(1, proxy.size.height) > 1.15
       ZStack {
-        GameArtwork(name: "splashscreen")
-          .scaleEffect(1.08)
-          .blur(radius: 18)
-          .overlay(.black.opacity(0.14))
-
-        ZStack {
-          BundledImage(name: "splashscreen")
-            .frame(width: sourceSize.width, height: sourceSize.height)
-
-          Button {
-            model.beginPlayFlow()
-          } label: {
-            ImageButton(name: "button-start", size: playSize / artworkScale)
-              .scaleEffect(playPulse ? 1.08 : 0.96)
-              .shadow(
-                color: .cyan.opacity(0.9),
-                radius: (playPulse ? 20 : 9) / artworkScale
-              )
-          }
-          .buttonStyle(.plain)
-          .accessibilityLabel("Start game")
-          .position(x: 329, y: 352)
-
-          Text("Tap or click the arrow to play")
-            .font(.system(size: 17 / artworkScale, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16 / artworkScale)
-            .padding(.vertical, 9 / artworkScale)
-            .background(.black.opacity(0.68), in: Capsule())
-            .overlay(
-              Capsule().stroke(.orange.opacity(0.8), lineWidth: 1 / artworkScale)
+        BundledImage(name: "splash-backdrop-tablet")
+          .scaledToFill()
+          .frame(width: proxy.size.width, height: proxy.size.height)
+          .clipped()
+          .overlay(
+            LinearGradient(
+              colors: [.black.opacity(0.16), .clear, .black.opacity(0.22)],
+              startPoint: .top,
+              endPoint: .bottom
             )
-            .position(x: 329, y: 352 + labelOffset / artworkScale)
-            .accessibilityHidden(true)
+          )
+
+        VStack(spacing: landscape ? 12 : 22) {
+          RaidTitle(compact: landscape)
+
+          MoonPlayButton(size: playSize, pulsing: playPulse) {
+            model.beginPlayFlow()
+          }
+
+          VStack(spacing: 5) {
+            Text("ENTER THE RAID")
+              .font(.system(.headline, design: .rounded, weight: .black))
+              .tracking(2.2)
+            Text("Tap, click, or press Return")
+              .font(.subheadline.weight(.semibold))
+              .foregroundStyle(.white.opacity(0.78))
+          }
+          .foregroundStyle(.white)
+          .padding(.horizontal, 20)
+          .padding(.vertical, 11)
+          .background(.black.opacity(0.64), in: Capsule())
+          .overlay(Capsule().stroke(RaidTheme.orange.opacity(0.75), lineWidth: 1))
+          .accessibilityHidden(true)
         }
-        .frame(width: sourceSize.width, height: sourceSize.height)
-        .scaleEffect(artworkScale)
-        .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
+        .position(
+          x: landscape ? proxy.size.width * 0.3 : proxy.size.width / 2,
+          y: landscape ? proxy.size.height * 0.44 : proxy.size.height * 0.31
+        )
 
         Button {
           model.showSettings()
         } label: {
-          Image(systemName: "info")
-            .font(.system(size: 16, weight: .black, design: .rounded))
+          Label("Guide", systemImage: "questionmark.circle.fill")
+            .font(.system(.subheadline, design: .rounded, weight: .bold))
             .foregroundStyle(.white)
-            .frame(width: 36, height: 36)
-            .background(.ultraThinMaterial, in: Circle())
-            .overlay(Circle().stroke(.orange.opacity(0.9), lineWidth: 1.5))
-            .shadow(color: .orange.opacity(0.28), radius: 10)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 44)
+            .background(.black.opacity(0.68), in: Capsule())
+            .overlay(Capsule().stroke(RaidTheme.orange.opacity(0.88), lineWidth: 1.2))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Settings and game guide")
-        .position(
-          x: proxy.size.width - max(26, proxy.safeAreaInsets.trailing + 26),
-          y: max(30, proxy.safeAreaInsets.top + 25)
-        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+        .padding(.top, max(14, proxy.safeAreaInsets.top))
+        .padding(.trailing, max(16, proxy.safeAreaInsets.trailing + 10))
       }
       .frame(width: proxy.size.width, height: proxy.size.height)
       .clipped()
+      .onSubmit { model.beginPlayFlow() }
     }
     .ignoresSafeArea()
     .onAppear {
       AudioManager.shared.startMusic(enabled: model.settings.musicEnabled)
-      withAnimation(.easeInOut(duration: 0.85).repeatForever(autoreverses: true)) {
+      withAnimation(
+        reduceMotion ? nil : .easeInOut(duration: 0.92).repeatForever(autoreverses: true)
+      ) {
         playPulse = true
       }
     }
-  }
-
-}
-
-struct TutorialView: View {
-  @EnvironmentObject private var model: AppModel
-  @Environment(\.accessibilityReduceMotion) private var systemReduceMotion
-  @State private var step = 0
-
-  private let lessons: [(symbol: String, title: String, detail: String, accent: Color)] = [
-    (
-      "hand.draw.fill", "Move freely",
-      "Drag the ghost with a finger or mouse. Arrow keys, WASD, a remote, and controllers work too.",
-      .cyan
-    ),
-    (
-      "arrow.up.forward.circle.fill", "Dash through pumpkins",
-      "Swipe quickly or press Space. A dash turns movement into offense and builds your combo.",
-      .orange
-    ),
-    (
-      "waveform.path.ecg", "Shriek when surrounded",
-      "Tap, click, or press Return to spend a shriek and clear nearby danger.", .purple
-    ),
-    (
-      "sparkles", "Chase the flow",
-      "Collect sweets, thread near misses, and chain targets. Every run advances missions and unlocks cosmetics.",
-      .yellow
-    ),
-  ]
-
-  var body: some View {
-    let lesson = lessons[step]
-    ZStack {
-      GameArtwork(name: "background")
-        .overlay(.black.opacity(0.5))
-      VStack(spacing: 24) {
-        Text("GHOST SCHOOL")
-          .font(.system(size: 34, weight: .black, design: .rounded))
-          .foregroundStyle(.orange)
-        HStack(spacing: 7) {
-          ForEach(lessons.indices, id: \.self) { index in
-            Capsule()
-              .fill(index <= step ? Color.orange : Color.white.opacity(0.22))
-              .frame(width: index == step ? 34 : 12, height: 8)
-          }
-        }
-        VStack(spacing: 20) {
-          Image(systemName: lesson.symbol)
-            .font(.system(size: 72, weight: .bold))
-            .foregroundStyle(lesson.accent)
-            .symbolEffect(.bounce, value: step)
-          Text(lesson.title)
-            .font(.system(size: 28, weight: .black, design: .rounded))
-          Text(lesson.detail)
-            .font(.body.weight(.semibold))
-            .foregroundStyle(.white.opacity(0.78))
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: 470)
-        }
-        .id(step)
-        .transition(.opacity.combined(with: .scale(scale: 0.96)))
-        .animation(systemReduceMotion ? nil : .spring(duration: 0.35), value: step)
-        HStack(spacing: 14) {
-          if step > 0 {
-            Button("Back") { step -= 1 }
-              .buttonStyle(.bordered)
-          }
-          Button(step == lessons.count - 1 ? "Choose a raid" : "Next") {
-            if step == lessons.count - 1 {
-              model.completeTutorial()
-            } else {
-              step += 1
-            }
-          }
-          .buttonStyle(.borderedProminent)
-          .tint(.orange)
-        }
-        Button("Skip tutorial") { model.completeTutorial() }
-          .buttonStyle(.plain)
-          .foregroundStyle(.white.opacity(0.7))
-      }
-      .padding(32)
-      .frame(maxWidth: 620)
-      .foregroundStyle(.white)
-      .background(.black.opacity(0.84), in: RoundedRectangle(cornerRadius: 28))
-      .overlay(RoundedRectangle(cornerRadius: 28).stroke(.orange.opacity(0.7), lineWidth: 1.5))
-      .padding(24)
-    }
-    .ignoresSafeArea()
   }
 }
 
@@ -258,6 +167,9 @@ struct SettingsView: View {
 
 struct ModeSelectionView: View {
   @EnvironmentObject private var model: AppModel
+  @State private var showsChallengeEntry = false
+  @State private var challengeCode = ""
+  @State private var challengeError = false
 
   private let columns = [GridItem(.adaptive(minimum: 220), spacing: 16)]
 
@@ -299,6 +211,13 @@ struct ModeSelectionView: View {
           }
           .buttonStyle(.bordered)
           .tint(.orange)
+          Button {
+            showsChallengeEntry = true
+          } label: {
+            Label("Friend challenge", systemImage: "person.2.wave.2.fill")
+          }
+          .buttonStyle(.borderedProminent)
+          .tint(.purple)
           LazyVGrid(columns: columns, spacing: 16) {
             modeCard(
               .classicRaid,
@@ -321,7 +240,8 @@ struct ModeSelectionView: View {
             modeCard(
               .dailyHaunt,
               title: "Daily Haunt",
-              detail: "A repeatable daily ruleset built for fair competition.",
+              detail:
+                "One shared seed each day • \(model.dailyChallenge.streak)-day streak • Best \(model.dailyChallenge.bestScore)",
               symbol: "calendar"
             )
             modeCard(
@@ -341,6 +261,46 @@ struct ModeSelectionView: View {
       }
     }
     .ignoresSafeArea()
+    .sheet(isPresented: $showsChallengeEntry) {
+      RaidGlassPanel {
+        VStack(spacing: 16) {
+          Text("FRIEND CHALLENGE")
+            .font(.title2.weight(.black))
+            .foregroundStyle(RaidTheme.orange)
+          Text("Paste a challenge code to replay the same seed and beat its target score.")
+            .multilineTextAlignment(.center)
+            .foregroundStyle(.white.opacity(0.75))
+          TextField("Challenge code", text: $challengeCode)
+            #if os(tvOS)
+              .textFieldStyle(.plain)
+            #else
+              .textFieldStyle(.roundedBorder)
+            #endif
+            .accessibilityLabel("Friend challenge code")
+          if challengeError {
+            Label("That challenge code is not valid.", systemImage: "exclamationmark.triangle.fill")
+              .foregroundStyle(.yellow)
+          }
+          Button("START CHALLENGE") {
+            guard let challenge = RaidChallenge.decode(challengeCode) else {
+              challengeError = true
+              return
+            }
+            challengeError = false
+            showsChallengeEntry = false
+            model.beginGame(mode: challenge.mode, seed: challenge.seed)
+          }
+          .buttonStyle(.borderedProminent)
+          .tint(RaidTheme.orange)
+          Button("Cancel") { showsChallengeEntry = false }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+      }
+      .padding(24)
+      .frame(minWidth: 320, minHeight: 360)
+      .background(RaidTheme.ink)
+    }
   }
 
   private func modeCard(
@@ -485,6 +445,7 @@ struct PlayerHubView: View {
         let equipped =
           item.id == model.progress.equippedGhostID
           || item.id == model.progress.equippedTrailID
+          || item.id == model.equippedAuraID
         Button {
           model.equip(item)
         } label: {
@@ -549,6 +510,8 @@ struct GameView: View {
   @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
   let settings: GameEngineLib.GameSettings
   let mode: GameMode
+  let seed: UInt64?
+  let cosmetics: CosmeticLoadout
   let onGameOver: (RunSummary) -> Void
   @State private var scene: GameScene
   @State private var isPaused = false
@@ -556,16 +519,21 @@ struct GameView: View {
   init(
     settings: GameEngineLib.GameSettings,
     mode: GameMode,
+    seed: UInt64? = nil,
+    cosmetics: CosmeticLoadout = CosmeticLoadout(),
     onGameOver: @escaping (RunSummary) -> Void
   ) {
     self.settings = settings
     self.mode = mode
+    self.seed = seed
+    self.cosmetics = cosmetics
     self.onGameOver = onGameOver
     _scene = State(
       initialValue: GameScene(
         settings: settings,
         mode: mode,
-        seed: mode == .dailyHaunt ? Self.dailySeed() : nil
+        seed: seed ?? (mode == .dailyHaunt ? Self.dailySeed() : nil),
+        cosmetics: cosmetics
       )
     )
   }
@@ -655,6 +623,7 @@ struct GameView: View {
     .onAppear {
       model.activeGameScene = scene
       scene.gameOverHandler = onGameOver
+      scene.challengeHandler = { model.captureChallenge($0) }
       scene.pauseChangedHandler = { paused in
         withAnimation(.easeOut(duration: 0.2)) { isPaused = paused }
       }
@@ -672,6 +641,7 @@ struct GameView: View {
     .onDisappear {
       if model.activeGameScene === scene { model.activeGameScene = nil }
       scene.pauseChangedHandler = nil
+      scene.challengeHandler = nil
       scene.stopMotionUpdates()
       AudioManager.shared.stopMusic()
     }
@@ -793,7 +763,10 @@ struct GameOverView: View {
             Button("Home") { model.showStart() }
               .buttonStyle(.bordered)
             #if !os(tvOS)
-              ShareLink(item: "I scored \(summary.score) points in Pumkin Raid!") {
+              ShareLink(
+                item: model.lastChallenge?.shareText
+                  ?? "I scored \(summary.score) points in Pumkin Raid!"
+              ) {
                 Label("Share", systemImage: "square.and.arrow.up")
               }
               .buttonStyle(.bordered)

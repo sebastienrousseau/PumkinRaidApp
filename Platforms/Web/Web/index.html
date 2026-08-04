@@ -9,16 +9,32 @@
 </head>
 <body>
   <main class="shell" aria-label="Pumkin Raid game">
-    <canvas id="game"></canvas>
+    <canvas id="game" role="application" aria-label="Pumkin Raid play field. Move with arrow keys or WASD, or drag the ghost. Space dashes and Return shrieks."></canvas>
     <header class="hud" aria-live="polite">
-      <span id="score">SCORE&nbsp;&nbsp;0</span><span id="lives">LIVES&nbsp;&nbsp;10</span>
+      <span id="score">SCORE&nbsp;&nbsp;0</span>
+      <span id="mode">CLASSIC RAID</span>
+      <span id="lives">LIVES&nbsp;&nbsp;10</span>
+      <span id="charges">DASH&nbsp;&nbsp;3 · SHRIEK&nbsp;&nbsp;3</span>
     </header>
     <section id="menu" class="menu">
-      <p class="eyebrow">A SWIFT GAME</p>
+      <p class="eyebrow">A PURE SWIFT ARCADE GAME</p>
       <h1>PUMKIN<br><span>RAID</span></h1>
-      <p>Guide the ghost. Dodge the raid.<br>Use arrows, WASD, touch, or mouse.</p>
-      <button id="play" type="button">PLAY NOW</button>
+      <p>Guide the ghost. Dash through the raid.<br>Use arrows, WASD, touch, mouse, Space and Enter.</p>
+      <div class="modes" aria-label="Choose game mode">
+        <button id="play" type="button">CLASSIC RAID</button>
+        <button id="moon" type="button">MOON RUSH</button>
+        <button id="zen" type="button">SPIRIT ZEN</button>
+        <button id="daily" type="button">DAILY HAUNT</button>
+        <button id="boss" type="button">BOSS RAID</button>
+      </div>
+      <p class="best">LOCAL BEST <strong id="best">0</strong></p>
     </section>
+    <img id="ghost-sprite" class="preload" src="assets/phantom.png" alt="">
+    <img id="pumpkin-sprite-1" class="preload" src="assets/pumpkin1.png" alt="">
+    <img id="pumpkin-sprite-2" class="preload" src="assets/pumpkin2.png" alt="">
+    <img id="pumpkin-sprite-3" class="preload" src="assets/pumpkin3.png" alt="">
+    <audio id="music" src="assets/mysterious_house.mp3" loop preload="auto"></audio>
+    <audio id="slice-sound" src="assets/slice.wav" preload="auto"></audio>
   </main>
   <script type="module">
     import { init } from "pumkin-raid-wasm";

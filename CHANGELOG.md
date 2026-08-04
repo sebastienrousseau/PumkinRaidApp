@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Replace the legacy text-baked splash with an owned text-free source-art export,
+  responsive code-native branding, a centered moon action, and a compact Guide control.
+- Add deterministic UTC daily streaks, best-score tracking, duplicate-safe rewards,
+  replay-backed friend challenge codes, and same-seed challenge launches.
+- Make ghost, trail, and aura cosmetics visible in play; add pumpkin fragments,
+  mode atmosphere, impact flashes, combo haptics, and reduced-motion alternatives.
+- Replace passive onboarding with an interactive move, dash, and shriek tutorial that
+  adapts to touch, pointer, keyboard, and focus-driven Apple TV input.
+- Upgrade HTML5 to all five modes, production sprites and audio, persistent best scores,
+  responsive HUD styling, reduced-motion support, and asserted keyboard/pointer movement.
+- Pin licensed exports with SHA-256 provenance and enforce a 3 MiB browser asset budget.
 - Add a four-step first-run tutorial and persistent completion state.
 - Add accessible control settings, pause lifecycle, adaptive audio, and frame telemetry.
 - Add player levels, missions, cosmetic unlocks, per-mode local boards, and assisted runs.

@@ -15,17 +15,26 @@ import SpriteKit
 /// SpriteKit rendering host for the authoritative GameEngineLib simulation.
 /// This type renders state and translates physical controls; it does not score,
 /// spawn, or resolve collisions independently.
+struct CosmeticLoadout: Equatable {
+  var ghostID = "ghost.classic"
+  var trailID = "trail.moonlight"
+  var auraID = "aura.none"
+}
+
 @MainActor
 final class GameScene: SKScene {
   static let maximumTransientEffects = 96
   var gameOverHandler: ((RunSummary) -> Void)?
+  var challengeHandler: ((RaidChallenge) -> Void)?
   var pauseChangedHandler: ((Bool) -> Void)?
   var authoritativeState: GameState { simulation.state }
 
   private let settings: GameSettings
+  private let cosmetics: CosmeticLoadout
   private var simulation: GameSimulation
   private let world = SKNode()
   private let effectsLayer = SKNode()
+  private let atmosphere = SKShapeNode()
   private let phantom = SKSpriteNode(texture: AssetLoader.texture("phantom"))
   private let scoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
   private let livesLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
@@ -57,8 +66,14 @@ final class GameScene: SKScene {
   private var shouldReduceMotion: Bool { settings.reducedMotionEnabled || systemReducedMotion }
   private var shouldUseHighContrast: Bool { settings.highContrastEnabled || systemHighContrast }
 
-  init(settings: GameSettings, mode: GameMode = .classicRaid, seed: UInt64? = nil) {
+  init(
+    settings: GameSettings,
+    mode: GameMode = .classicRaid,
+    seed: UInt64? = nil,
+    cosmetics: CosmeticLoadout = CosmeticLoadout()
+  ) {
     self.settings = settings
+    self.cosmetics = cosmetics
     let runSeed =
       seed
       ?? UInt64(Date().timeIntervalSince1970 * 1_000_000) ^ UInt64.random(in: .min ... .max)
@@ -94,6 +109,7 @@ final class GameScene: SKScene {
     addChild(world)
     addChild(effectsLayer)
     buildBackground()
+    buildAtmosphere()
     buildHUD()
     buildPhantom()
     syncNodesWithSimulation()
@@ -107,6 +123,7 @@ final class GameScene: SKScene {
       background.position = CGPoint(x: size.width / 2, y: size.height / 2)
       resizeBackground(background)
     }
+    atmosphere.path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
     layoutHUD()
     phantom.size = CGSize(width: 72 * spriteScale, height: 76 * spriteScale)
     for node in pumpkinNodes.values { resizePumpkin(node) }
@@ -149,6 +166,35 @@ final class GameScene: SKScene {
     background.zPosition = -10
     resizeBackground(background)
     world.addChild(background)
+  }
+
+  private func buildAtmosphere() {
+    atmosphere.name = "mode-atmosphere"
+    atmosphere.path = CGPath(rect: CGRect(origin: .zero, size: size), transform: nil)
+    atmosphere.strokeColor = .clear
+    atmosphere.zPosition = -5
+    switch simulation.state.mode {
+    case .classicRaid:
+      atmosphere.fillColor = .clear
+    case .moonRush:
+      atmosphere.fillColor = SKColor(red: 1, green: 0.36, blue: 0.04, alpha: 0.08)
+    case .spiritZen:
+      atmosphere.fillColor = SKColor(red: 0.12, green: 0.72, blue: 0.94, alpha: 0.08)
+    case .dailyHaunt:
+      atmosphere.fillColor = SKColor(red: 0.52, green: 0.14, blue: 0.82, alpha: 0.1)
+    case .bossRaid:
+      atmosphere.fillColor = SKColor(red: 0.72, green: 0.02, blue: 0.02, alpha: 0.14)
+    }
+    world.addChild(atmosphere)
+    guard !shouldReduceMotion, simulation.state.mode != .classicRaid else { return }
+    atmosphere.run(
+      .repeatForever(
+        .sequence([
+          .fadeAlpha(to: 0.45, duration: 1.2),
+          .fadeAlpha(to: 1, duration: 1.2),
+        ])
+      )
+    )
   }
 
   private func resizeBackground(_ background: SKSpriteNode) {
@@ -221,7 +267,47 @@ final class GameScene: SKScene {
     phantom.name = "phantom"
     phantom.size = CGSize(width: 72 * spriteScale, height: 76 * spriteScale)
     phantom.zPosition = 5
+    switch cosmetics.ghostID {
+    case "ghost.frost":
+      phantom.color = SKColor(red: 0.42, green: 0.86, blue: 1, alpha: 1)
+      phantom.colorBlendFactor = 0.32
+    case "ghost.king":
+      phantom.color = SKColor(red: 1, green: 0.76, blue: 0.2, alpha: 1)
+      phantom.colorBlendFactor = 0.28
+    default:
+      phantom.colorBlendFactor = 0
+    }
     world.addChild(phantom)
+    if cosmetics.auraID == "aura.frenzy" {
+      let aura = SKShapeNode(circleOfRadius: 46 * spriteScale)
+      aura.name = "phantom-aura"
+      aura.fillColor = SKColor(red: 1, green: 0.46, blue: 0.04, alpha: 0.12)
+      aura.strokeColor = SKColor(red: 1, green: 0.72, blue: 0.18, alpha: 0.82)
+      aura.glowWidth = 14
+      aura.zPosition = -1
+      phantom.addChild(aura)
+      guard shouldReduceMotion else {
+        aura.run(
+          .repeatForever(
+            .sequence([
+              .scale(to: 1.13, duration: 0.52),
+              .scale(to: 0.94, duration: 0.52),
+            ])
+          )
+        )
+        return
+      }
+    }
+    guard !shouldReduceMotion else { return }
+    phantom.run(
+      .repeatForever(
+        .sequence([
+          .scale(to: 1.025, duration: 0.7),
+          .scale(to: 0.985, duration: 0.7),
+        ])
+      ),
+      withKey: "idle"
+    )
   }
 
   private func syncNodesWithSimulation() {
@@ -313,13 +399,24 @@ final class GameScene: SKScene {
         let label = combo > 1 ? "DASH x\(combo)  +\(points)" : "DASH!"
         showCallout(label, at: node.position, color: .orange)
         burst(at: node.position, color: .orange, identity: id)
+        pumpkinFragments(at: node.position, identity: id)
         AudioManager.shared.play("slice", enabled: settings.effectsEnabled)
+        provideSuccessFeedback(combo: combo)
       case .damaged(let id, _):
         let position = pumpkinNodes[id]?.position ?? phantom.position
         showCallout("OUCH!", at: position, color: .red)
         burst(at: position, color: .red, identity: id)
         AudioManager.shared.play("bow_wah", enabled: settings.effectsEnabled)
         provideHitFeedback()
+        impactFlash(color: .red)
+        phantom.run(
+          .sequence([
+            .scale(to: 0.84, duration: 0.05),
+            .scale(to: 1.12, duration: 0.09),
+            .scale(to: 1, duration: 0.12),
+          ]),
+          withKey: "impact"
+        )
         if settings.screenShakeEnabled, !shouldReduceMotion {
           phantom.run(
             .sequence([
@@ -347,6 +444,7 @@ final class GameScene: SKScene {
         showCallout("SWEET +\(points)", at: position, color: .yellow)
         burst(at: position, color: .yellow, identity: id)
         AudioManager.shared.play("ding", enabled: settings.effectsEnabled)
+        provideSuccessFeedback(combo: 1)
       case .waveStarted(let index, let pattern):
         let title = pattern == .breathingSpace ? "BREATHE" : "WAVE \(index)"
         showCallout(title, at: CGPoint(x: size.width / 2, y: size.height * 0.68), color: .white)
@@ -354,6 +452,7 @@ final class GameScene: SKScene {
         showCallout(
           "FRENZY x2!", at: CGPoint(x: size.width / 2, y: size.height * 0.58), color: .yellow)
         AudioManager.shared.play("ding", enabled: settings.effectsEnabled)
+        impactFlash(color: .yellow)
       case .lastChance:
         showCallout(
           "LAST CHANCE!", at: CGPoint(x: size.width / 2, y: size.height * 0.5), color: .red)
@@ -383,6 +482,14 @@ final class GameScene: SKScene {
     stopMotionUpdates()
     AudioManager.shared.stopMusic()
     AudioManager.shared.play("female_scream", enabled: settings.effectsEnabled)
+    challengeHandler?(
+      RaidChallenge(
+        seed: simulation.state.seed,
+        mode: simulation.state.mode,
+        targetScore: score,
+        replayDigest: simulation.digest
+      )
+    )
     run(
       .sequence([
         .wait(forDuration: 0.6),
@@ -420,12 +527,52 @@ final class GameScene: SKScene {
     path.move(to: start)
     path.addLine(to: end)
     let trail = SKShapeNode(path: path)
-    trail.strokeColor = SKColor(red: 0.55, green: 0.92, blue: 1, alpha: 0.95)
+    trail.strokeColor = trailColor
     trail.glowWidth = 7
     trail.lineWidth = 4
     trail.zPosition = 40
     addTransientEffect(trail)
     trail.run(.sequence([.fadeOut(withDuration: 0.22), .removeFromParent()]))
+  }
+
+  private var trailColor: SKColor {
+    switch cosmetics.trailID {
+    case "trail.ember": SKColor(red: 1, green: 0.34, blue: 0.04, alpha: 0.98)
+    case "trail.cursed": SKColor(red: 0.72, green: 0.22, blue: 1, alpha: 0.98)
+    default: SKColor(red: 0.55, green: 0.92, blue: 1, alpha: 0.95)
+    }
+  }
+
+  private func pumpkinFragments(at point: CGPoint, identity: Int) {
+    guard !shouldReduceMotion else { return }
+    for index in 0..<2 {
+      let fragment = SKSpriteNode(texture: AssetLoader.texture("pumpkin_piece\(index + 1)"))
+      fragment.size = CGSize(width: 34 * spriteScale, height: 48 * spriteScale)
+      fragment.position = point
+      fragment.zPosition = 18
+      addTransientEffect(fragment)
+      let direction: CGFloat = index == 0 ? -1 : 1
+      fragment.run(
+        .sequence([
+          .group([
+            .moveBy(x: direction * CGFloat(52 + identity % 24), y: 36, duration: 0.34),
+            .rotate(byAngle: direction * .pi * 1.2, duration: 0.34),
+            .fadeOut(withDuration: 0.34),
+          ]),
+          .removeFromParent(),
+        ])
+      )
+    }
+  }
+
+  private func impactFlash(color: SKColor) {
+    let flash = SKShapeNode(rectOf: size)
+    flash.position = CGPoint(x: size.width / 2, y: size.height / 2)
+    flash.fillColor = color.withAlphaComponent(0.16)
+    flash.strokeColor = .clear
+    flash.zPosition = 90
+    addTransientEffect(flash)
+    flash.run(.sequence([.fadeOut(withDuration: 0.16), .removeFromParent()]))
   }
 
   private func burst(at point: CGPoint, color: SKColor, identity: Int) {
@@ -510,6 +657,21 @@ final class GameScene: SKScene {
       timestamp: timestamp,
       controlsGhost: draggingPhantom
     )
+  }
+
+  /// Semantic pointer entry point shared by the macOS event bridge and tests.
+  /// Keeping this independent of an attached `SKView` protects drag controls
+  /// against responder-chain regressions.
+  func pointerDown(at scenePoint: CGPoint, timestamp: TimeInterval) {
+    beginGesture(at: scenePoint, timestamp: timestamp)
+  }
+
+  func pointerDragged(to scenePoint: CGPoint) {
+    moveGesture(to: scenePoint)
+  }
+
+  func pointerUp(at scenePoint: CGPoint, timestamp: TimeInterval) {
+    endGesture(at: scenePoint, timestamp: timestamp)
   }
 
   private func moveGesture(to point: CGPoint) {
@@ -673,30 +835,39 @@ final class GameScene: SKScene {
     #endif
   }
 
+  private func provideSuccessFeedback(combo: Int) {
+    guard settings.vibrationEnabled else { return }
+    #if os(iOS)
+      UIImpactFeedbackGenerator(style: combo >= 4 ? .heavy : .light).impactOccurred(
+        intensity: combo >= 4 ? 0.9 : 0.55
+      )
+    #endif
+  }
+
   #if os(macOS)
     func handleApplicationPointerEvent(_ event: NSEvent) -> Bool {
       guard let view, event.window === view.window else { return false }
       let point = convertPoint(fromView: view.convert(event.locationInWindow, from: nil))
       switch event.type {
-      case .leftMouseDown: beginGesture(at: point, timestamp: event.timestamp)
-      case .leftMouseDragged: moveGesture(to: point)
-      case .leftMouseUp: endGesture(at: point, timestamp: event.timestamp)
+      case .leftMouseDown: pointerDown(at: point, timestamp: event.timestamp)
+      case .leftMouseDragged: pointerDragged(to: point)
+      case .leftMouseUp: pointerUp(at: point, timestamp: event.timestamp)
       default: return false
       }
       return true
     }
 
     func handlePointerDown(at viewPoint: CGPoint) {
-      beginGesture(
+      pointerDown(
         at: convertPoint(fromView: viewPoint), timestamp: ProcessInfo.processInfo.systemUptime)
     }
 
     func handlePointerDragged(to viewPoint: CGPoint) {
-      moveGesture(to: convertPoint(fromView: viewPoint))
+      pointerDragged(to: convertPoint(fromView: viewPoint))
     }
 
     func handlePointerUp(at viewPoint: CGPoint) {
-      endGesture(
+      pointerUp(
         at: convertPoint(fromView: viewPoint), timestamp: ProcessInfo.processInfo.systemUptime)
     }
   #endif

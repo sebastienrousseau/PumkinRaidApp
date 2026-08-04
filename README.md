@@ -29,7 +29,9 @@ short sessions that invite one more run.
 - First-run ghost school, pause/resume lifecycle, scalable accessibility controls,
   reduced motion, high contrast, captions, and input sensitivity.
 - Swift WebAssembly Canvas host with keyboard, touch, and mouse controls, an optimized
-  Vite release bundle, and a real Chromium interaction smoke test.
+  Vite release bundle, and real Chromium, Firefox, and WebKit movement tests.
+- UTC daily streaks, replay-backed friend challenges, functional cosmetic loadouts,
+  five mechanically distinct modes, and deterministic same-seed competition.
 - Swift 6 concurrency, deterministic unit tests, CI, security policy, and contributor
   documentation.
 
@@ -99,6 +101,7 @@ The browser build requires Swift 6.2 or newer and its matching WebAssembly SDK. 
 swift format lint --strict --recursive Sources Tests
 swift test
 plutil -lint Sources/PumkinRaidApp/Resources/PrivacyInfo.xcprivacy
+./Scripts/validate-assets.sh
 ```
 
 The public `GameEngineLib` package owns deterministic rules and fuzz tests. This
@@ -112,13 +115,16 @@ The game has a professional technical foundation and a complete playable loop. I
 does not claim visual parity with a large commercial title using legacy art alone.
 The highest-impact missing design deliverables are listed in the
 [design system](Documentation/DesignSystem.md), allowing those screens to be produced
-separately without reworking the engine.
+separately without reworking the engine. Repository gates and the human release
+protocol deliberately distinguish automated confidence from subjective market proof.
 
 ## Assets and license
 
 Source code uses the zlib license in [LICENSE.txt](LICENSE.txt). Artwork and audio are
 excluded from that license and originate from the existing `pumpkinraid-v2` project;
-confirm distribution rights before publishing or shipping them. See [NOTICE.md](NOTICE.md).
+are distributed under rights confirmed by the repository owner. Their provenance and
+integrity records are documented in [AssetProvenance](Documentation/AssetProvenance.md)
+and [NOTICE.md](NOTICE.md).
 
 Contributions are welcome under [CONTRIBUTING.md](CONTRIBUTING.md). Please disclose
 security issues according to [SECURITY.md](SECURITY.md).
