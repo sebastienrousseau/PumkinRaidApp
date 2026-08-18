@@ -9,7 +9,8 @@
     "pumkin-raid-wasm": "file:.build/plugins/PackageToJS/outputs/Package"
   },
   "overrides": {
-    "esbuild": "0.28.1"
+    "esbuild": "0.28.1",
+    "nanoid@^3.3.0": "file:vendor/nanoid-3.3.18.tgz"
   },
   "devDependencies": {
     "playwright": "1.62.1",
