@@ -23,6 +23,8 @@ private final class BrowserGame {
   private var lastTimestamp = 0.0
   private var accumulator = 0.0
   private var running = false
+  private let effects = VisualEffectsManager()
+  private var lastPumpkinPositions: [Int: (x: Double, y: Double, radius: Double)] = [:]
   private var frameClosure: JSClosure?
   private var eventClosures: [JSClosure] = []
 
@@ -92,6 +94,9 @@ private final class BrowserGame {
         timestamp: (event.timeStamp.number ?? 0) / 1_000,
         controlsGhost: true
       )
+      let w = self.canvas.width.number ?? 1
+      let h = self.canvas.height.number ?? 1
+      self.effects.addBladePoint(x: point.x * w, y: point.y * h)
       _ = event.preventDefault!()
       return .undefined
     }
@@ -99,7 +104,11 @@ private final class BrowserGame {
       guard let self, self.pointerIsActive, let event = arguments.first?.object else {
         return .undefined
       }
-      self.inputRouter.movePointer(to: self.normalizedPointer(event))
+      let point = self.normalizedPointer(event)
+      self.inputRouter.movePointer(to: point)
+      let w = self.canvas.width.number ?? 1
+      let h = self.canvas.height.number ?? 1
+      self.effects.addBladePoint(x: point.x * w, y: point.y * h)
       _ = event.preventDefault!()
       return .undefined
     }
@@ -173,16 +182,14 @@ private final class BrowserGame {
     lastTimestamp = timestamp
     accumulator += frameDelta
     let fixedDelta = 1 / Double(simulation.configuration.ticksPerSecond)
+    let width = canvas.width.number ?? 1
+    let height = canvas.height.number ?? 1
+    effects.update(deltaTime: frameDelta)
     var steps = 0
     while accumulator >= fixedDelta, steps < 6 {
       let events = simulation.step(inputRouter.nextFrame())
-      if events.contains(where: {
-        if case .destroyed = $0 { return true }
-        return false
-      }) {
-        let sound = document.getElementById("slice-sound").object
-        sound?.currentTime = 0
-        _ = sound?.play?()
+      for event in events {
+        handleEvent(event, width: width, height: height)
       }
       accumulator -= fixedDelta
       steps += 1
@@ -198,6 +205,58 @@ private final class BrowserGame {
     } else {
       scheduleFrame()
     }
+  }
+
+  private func handleEvent(_ event: GameEvent, width: Double, height: Double) {
+    let ghost = simulation.state.ghost.position
+    let gx = ghost.x * width
+    let gy = ghost.y * height
+    switch event {
+    case .destroyed(let id, let combo, let points):
+      let pos = lastPumpkinPositions[id] ?? (x: gx, y: gy, radius: min(width, height) * 0.04)
+      effects.spawnSlice(atX: pos.x, y: pos.y, size: pos.radius * 2, identity: id)
+      let label = combo >= 3 ? "\(combo)x COMBO! +\(points)" : (combo == 2 ? "2x COMBO! +\(points)" : "DASH!")
+      effects.spawnCallout(text: label, atX: pos.x, y: pos.y - 25, color: combo >= 3 ? "#ffd54f" : "#ff9a3c")
+      playAudio("slice-sound")
+    case .damaged:
+      effects.triggerShake(intensity: 10)
+      effects.spawnCallout(text: "OUCH!", atX: gx, y: gy - 20, color: "#ff4444")
+      playAudio("hit-sound")
+    case .armoredHit(let id, let remaining):
+      let pos = lastPumpkinPositions[id] ?? (x: gx, y: gy, radius: min(width, height) * 0.04)
+      effects.spawnCallout(text: "CRACK! \(remaining)", atX: pos.x, y: pos.y - 20, color: "#00e5ff")
+      playAudio("hit-sound")
+    case .cursedTriggered:
+      effects.triggerShake(intensity: 12)
+      effects.spawnCallout(text: "CURSED!", atX: gx, y: gy - 20, color: "#d05ce3")
+      playAudio("explode-sound")
+    case .nearMiss(_, let points):
+      effects.spawnCallout(text: "NEAR MISS +\(points)", atX: gx, y: gy - 20, color: "#00e5ff")
+    case .pickupCollected(_, _, let points):
+      effects.spawnCallout(text: "SWEET +\(points)", atX: gx, y: gy - 20, color: "#ffd54f")
+      playAudio("ding-sound")
+    case .waveStarted(let index, let pattern):
+      let title = pattern == .breathingSpace ? "BREATHE" : "WAVE \(index)"
+      effects.spawnCallout(text: title, atX: width / 2, y: height * 0.4, color: "#ffffff")
+    case .frenzyStarted:
+      effects.triggerShake(intensity: 6)
+      effects.spawnCallout(text: "FRENZY x2!", atX: width / 2, y: height * 0.35, color: "#ffd54f")
+      playAudio("ding-sound")
+    case .dashed(let from, let to):
+      effects.addBladeSegment(fromX: from.x * width, fromY: from.y * height, toX: to.x * width, toY: to.y * height)
+    case .shrieked(let origin, let count):
+      guard count > 0 else { return }
+      effects.triggerShake(intensity: 14)
+      effects.spawnCallout(text: "SHRIEK x\(count)!", atX: origin.x * width, y: origin.y * height, color: "#ffd54f")
+      playAudio("explode-sound")
+    default: break
+    }
+  }
+
+  private func playAudio(_ id: String) {
+    guard let sound = document.getElementById(id).object else { return }
+    sound.currentTime = 0
+    _ = sound.play?()
   }
 
   private func setKey(_ key: String, pressed: Bool, isRepeat: Bool) {
@@ -235,6 +294,17 @@ private final class BrowserGame {
     let width = canvas.width.number ?? 1
     let height = canvas.height.number ?? 1
     _ = context.clearRect!(0, 0, width, height)
+
+    let hasShake = effects.shake > 0.1
+    var shakeX = 0.0
+    var shakeY = 0.0
+    if hasShake {
+      shakeX = Double.random(in: -1...1) * effects.shake
+      shakeY = Double.random(in: -1...1) * effects.shake
+      _ = context.save!()
+      _ = context.translate!(shakeX, shakeY)
+    }
+
     let gradient = context.createLinearGradient!(0, 0, 0, height).object!
     _ = gradient.addColorStop!(0, "rgba(7,16,33,.35)")
     _ = gradient.addColorStop!(1, "rgba(39,7,10,.72)")
@@ -243,10 +313,16 @@ private final class BrowserGame {
     context.fillStyle = .string(modeTint(currentMode))
     _ = context.fillRect!(0, 0, width, height)
 
+    // Render juice splats, sliced pumpkin halves, particles, and floating callouts
+    effects.render(context: context, width: width, height: height, document: document)
+
+    // Render active whole pumpkins and record positions
+    lastPumpkinPositions.removeAll(keepingCapacity: true)
     for pumpkin in simulation.state.pumpkins {
       let x = pumpkin.position.x * width
       let y = pumpkin.position.y * height
       let radius = pumpkin.radius * min(width, height)
+      lastPumpkinPositions[pumpkin.id] = (x: x, y: y, radius: radius)
       let frame = (Int(simulation.state.tick / 10 % 3) + pumpkin.id) % 3 + 1
       if let image = document.getElementById("pumpkin-sprite-\(frame)").object,
         image.complete.boolean == true
@@ -257,19 +333,25 @@ private final class BrowserGame {
       }
     }
 
+    // Render sweet pickup
     if let pickup = simulation.state.pickup {
-      context.fillStyle = ["#ffe16a", "#64e8ff", "#ff72c6"][pickup.kind]
-      _ = context.beginPath!()
-      _ = context.arc!(
-        pickup.position.x * width,
-        pickup.position.y * height,
-        min(width, height) * 0.027,
-        0,
-        Double.pi * 2
-      )
-      _ = context.fill!()
+      let px = pickup.position.x * width
+      let py = pickup.position.y * height
+      let pRadius = min(width, height) * 0.038
+      let frame = pickup.kind + 1
+      if let image = document.getElementById("sweet-sprite-\(frame)").object,
+        image.complete.boolean == true
+      {
+        _ = context.drawImage!(image, px - pRadius, py - pRadius, pRadius * 2, pRadius * 2)
+      } else {
+        context.fillStyle = ["#ffe16a", "#64e8ff", "#ff72c6"][pickup.kind]
+        _ = context.beginPath!()
+        _ = context.arc!(px, py, min(width, height) * 0.027, 0, Double.pi * 2)
+        _ = context.fill!()
+      }
     }
 
+    // Render ghost
     let ghost = simulation.state.ghost.position
     document.documentElement.object?.dataset.object?.ghostX = .string(String(ghost.x))
     document.documentElement.object?.dataset.object?.ghostY = .string(String(ghost.y))
@@ -280,6 +362,10 @@ private final class BrowserGame {
       image.complete.boolean == true
     {
       _ = context.drawImage!(image, x - radius, y - radius, radius * 2, radius * 2)
+    }
+
+    if hasShake {
+      _ = context.restore!()
     }
   }
 

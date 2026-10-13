@@ -411,10 +411,11 @@ final class GameScene: SKScene {
       switch event {
       case .destroyed(let id, let combo, let points):
         guard let node = pumpkinNodes[id] else { continue }
-        let label = combo > 1 ? "DASH x\(combo)  +\(points)" : "DASH!"
-        showCallout(label, at: node.position, color: .orange)
+        let label = combo >= 3 ? "\(combo)x COMBO!  +\(points)" : (combo == 2 ? "2x COMBO!  +\(points)" : "DASH!")
+        showCallout(label, at: node.position, color: combo >= 3 ? .yellow : .orange)
         burst(at: node.position, color: .orange, identity: id)
         pumpkinFragments(at: node.position, identity: id)
+        juiceSplatter(at: node.position, identity: id)
         AudioManager.shared.play("slice", enabled: settings.effectsEnabled)
         provideSuccessFeedback(combo: combo)
       case .damaged(let id, _):
@@ -529,9 +530,20 @@ final class GameScene: SKScene {
       label.run(
         .sequence([.wait(forDuration: 0.45), .fadeOut(withDuration: 0.18), .removeFromParent()]))
     } else {
+      label.setScale(0.6)
       label.run(
         .sequence([
-          .group([.moveBy(x: 0, y: 70, duration: 0.7), .fadeOut(withDuration: 0.7)]),
+          .group([
+            .sequence([
+              .scale(to: 1.28, duration: 0.1),
+              .scale(to: 1.0, duration: 0.08),
+            ]),
+            .moveBy(x: 0, y: 65, duration: 0.65),
+            .sequence([
+              .wait(forDuration: 0.35),
+              .fadeOut(withDuration: 0.3),
+            ]),
+          ]),
           .removeFromParent(),
         ]))
     }
@@ -543,11 +555,18 @@ final class GameScene: SKScene {
     path.addLine(to: end)
     let trail = SKShapeNode(path: path)
     trail.strokeColor = trailColor
-    trail.glowWidth = 7
-    trail.lineWidth = 4
+    trail.glowWidth = 8
+    trail.lineWidth = 5
     trail.zPosition = 40
     addTransientEffect(trail)
     trail.run(.sequence([.fadeOut(withDuration: 0.22), .removeFromParent()]))
+
+    let core = SKShapeNode(path: path)
+    core.strokeColor = .white
+    core.lineWidth = 2.5
+    core.zPosition = 41
+    addTransientEffect(core)
+    core.run(.sequence([.fadeOut(withDuration: 0.16), .removeFromParent()]))
   }
 
   private var trailColor: SKColor {
@@ -567,17 +586,42 @@ final class GameScene: SKScene {
       fragment.zPosition = 18
       addTransientEffect(fragment)
       let direction: CGFloat = index == 0 ? -1 : 1
+      let dx = direction * CGFloat(60 + identity % 28)
+      let arc = SKAction.customAction(withDuration: 0.52) { node, elapsedTime in
+        let progress = elapsedTime / 0.52
+        let xOffset = dx * progress
+        let yOffset = (35 * progress) - (125 * progress * progress)
+        node.position = CGPoint(x: point.x + xOffset, y: point.y + yOffset)
+      }
       fragment.run(
         .sequence([
           .group([
-            .moveBy(x: direction * CGFloat(52 + identity % 24), y: 36, duration: 0.34),
-            .rotate(byAngle: direction * .pi * 1.2, duration: 0.34),
-            .fadeOut(withDuration: 0.34),
+            arc,
+            .rotate(byAngle: direction * .pi * 2.2, duration: 0.52),
+            .sequence([.wait(forDuration: 0.22), .fadeOut(withDuration: 0.3)]),
           ]),
           .removeFromParent(),
         ])
       )
     }
+  }
+
+  private func juiceSplatter(at point: CGPoint, identity: Int) {
+    guard !shouldReduceMotion else { return }
+    let splat = SKShapeNode(circleOfRadius: CGFloat(14 + (identity % 12)))
+    splat.fillColor = SKColor(red: 1.0, green: 0.52, blue: 0.05, alpha: 0.38)
+    splat.strokeColor = .clear
+    splat.position = point
+    splat.zPosition = 3
+    addTransientEffect(splat)
+    splat.run(
+      .sequence([
+        .scale(to: 1.35, duration: 0.08),
+        .wait(forDuration: 0.8),
+        .fadeOut(withDuration: 0.5),
+        .removeFromParent(),
+      ])
+    )
   }
 
   private func impactFlash(color: SKColor) {
