@@ -52,7 +52,6 @@ struct BladePoint {
 }
 
 /// Authoritative manager of visual effects for the WebAssembly canvas.
-@MainActor
 final class VisualEffectsManager {
   private(set) var slices: [PumpkinSlice] = []
   private(set) var particles: [JuiceParticle] = []
@@ -69,11 +68,12 @@ final class VisualEffectsManager {
   func addBladeSegment(fromX: Double, fromY: Double, toX: Double, toY: Double) {
     for step in 0...4 {
       let fraction = Double(step) / 4.0
-      bladePoints.append(BladePoint(
-        x: fromX + (toX - fromX) * fraction,
-        y: fromY + (toY - fromY) * fraction,
-        age: 0
-      ))
+      bladePoints.append(
+        BladePoint(
+          x: fromX + (toX - fromX) * fraction,
+          y: fromY + (toY - fromY) * fraction,
+          age: 0
+        ))
     }
   }
 
@@ -196,7 +196,9 @@ final class VisualEffectsManager {
     // 2. Render sliced pumpkin halves (tumbling apart)
     for slice in slices {
       let id = "pumpkin-piece-\(slice.pieceIndex)"
-      guard let img = document.getElementById(id).object, img.complete.boolean == true else { continue }
+      guard let img = document.getElementById!(id).object, img.complete.boolean == true else {
+        continue
+      }
       _ = context.save!()
       _ = context.translate!(slice.x, slice.y)
       _ = context.rotate!(slice.angle)

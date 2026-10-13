@@ -215,8 +215,10 @@ private final class BrowserGame {
     case .destroyed(let id, let combo, let points):
       let pos = lastPumpkinPositions[id] ?? (x: gx, y: gy, radius: min(width, height) * 0.04)
       effects.spawnSlice(atX: pos.x, y: pos.y, size: pos.radius * 2, identity: id)
-      let label = combo >= 3 ? "\(combo)x COMBO! +\(points)" : (combo == 2 ? "2x COMBO! +\(points)" : "DASH!")
-      effects.spawnCallout(text: label, atX: pos.x, y: pos.y - 25, color: combo >= 3 ? "#ffd54f" : "#ff9a3c")
+      let label =
+        combo >= 3 ? "\(combo)x COMBO! +\(points)" : (combo == 2 ? "2x COMBO! +\(points)" : "DASH!")
+      effects.spawnCallout(
+        text: label, atX: pos.x, y: pos.y - 25, color: combo >= 3 ? "#ffd54f" : "#ff9a3c")
       playAudio("slice-sound")
     case .damaged:
       effects.triggerShake(intensity: 10)
@@ -243,11 +245,13 @@ private final class BrowserGame {
       effects.spawnCallout(text: "FRENZY x2!", atX: width / 2, y: height * 0.35, color: "#ffd54f")
       playAudio("ding-sound")
     case .dashed(let from, let to):
-      effects.addBladeSegment(fromX: from.x * width, fromY: from.y * height, toX: to.x * width, toY: to.y * height)
+      effects.addBladeSegment(
+        fromX: from.x * width, fromY: from.y * height, toX: to.x * width, toY: to.y * height)
     case .shrieked(let origin, let count):
       guard count > 0 else { return }
       effects.triggerShake(intensity: 14)
-      effects.spawnCallout(text: "SHRIEK x\(count)!", atX: origin.x * width, y: origin.y * height, color: "#ffd54f")
+      effects.spawnCallout(
+        text: "SHRIEK x\(count)!", atX: origin.x * width, y: origin.y * height, color: "#ffd54f")
       playAudio("explode-sound")
     default: break
     }
