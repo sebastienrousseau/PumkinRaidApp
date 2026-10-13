@@ -588,44 +588,89 @@ final class GameScene: SKScene {
     guard !shouldReduceMotion else { return }
     for index in 0..<2 {
       let fragment = SKSpriteNode(texture: AssetLoader.texture("pumpkin_piece\(index + 1)"))
-      fragment.size = CGSize(width: 34 * spriteScale, height: 48 * spriteScale)
+      fragment.size = CGSize(width: 44 * spriteScale, height: 58 * spriteScale)
       fragment.position = point
       fragment.zPosition = 18
       addTransientEffect(fragment)
       let direction: CGFloat = index == 0 ? -1 : 1
-      let dx = direction * CGFloat(60 + identity % 28)
-      let arc = SKAction.customAction(withDuration: 0.52) { node, elapsedTime in
-        let progress = elapsedTime / 0.52
+      let dx = direction * CGFloat(70 + identity % 28)
+      let arc = SKAction.customAction(withDuration: 0.55) { node, elapsedTime in
+        let progress = elapsedTime / 0.55
         let xOffset = dx * progress
-        let yOffset = (35 * progress) - (125 * progress * progress)
+        let yOffset = (40 * progress) - (140 * progress * progress)
         node.position = CGPoint(x: point.x + xOffset, y: point.y + yOffset)
       }
       fragment.run(
         .sequence([
           .group([
             arc,
-            .rotate(byAngle: direction * .pi * 2.2, duration: 0.52),
-            .sequence([.wait(forDuration: 0.22), .fadeOut(withDuration: 0.3)]),
+            .rotate(byAngle: direction * .pi * 2.4, duration: 0.55),
+            .sequence([.wait(forDuration: 0.25), .fadeOut(withDuration: 0.3)]),
           ]),
           .removeFromParent(),
         ])
       )
     }
+
+    // Spawn 5 flying pumpkin seeds
+    for index in 0..<5 {
+      let seed = SKSpriteNode(texture: AssetLoader.texture("pumpkin_seed"))
+      seed.size = CGSize(width: 9 * spriteScale, height: 14 * spriteScale)
+      seed.position = point
+      seed.zPosition = 17
+      addTransientEffect(seed)
+      let angle = CGFloat((identity * 43 + index * 71) % 360) * .pi / 180
+      let speed = CGFloat(65 + (identity * 13 + index * 29) % 70)
+      let dx = cos(angle) * speed
+      let dy = sin(angle) * speed
+      let spin = (index % 2 == 0 ? 1 : -1) * CGFloat.pi * 3
+      seed.run(
+        .sequence([
+          .group([
+            .move(by: CGVector(dx: dx * 0.48, dy: dy * 0.48 - 30), duration: 0.48),
+            .rotate(byAngle: spin, duration: 0.48),
+            .fadeOut(withDuration: 0.48),
+          ]),
+          .removeFromParent(),
+        ]))
+    }
   }
 
   private func juiceSplatter(at point: CGPoint, identity: Int) {
     guard !shouldReduceMotion else { return }
-    let splat = SKShapeNode(circleOfRadius: CGFloat(14 + (identity % 12)))
-    splat.fillColor = SKColor(red: 1.0, green: 0.52, blue: 0.05, alpha: 0.38)
+    let radius = CGFloat(24 + (identity % 16)) * spriteScale
+    let splat = SKShapeNode(circleOfRadius: radius)
+    splat.fillColor = SKColor(red: 1.0, green: 0.48, blue: 0.04, alpha: 0.42)
     splat.strokeColor = .clear
     splat.position = point
     splat.zPosition = 3
     addTransientEffect(splat)
+
+    // Satellite droplets
+    for i in 0..<4 {
+      let angle = CGFloat(i) * .pi / 2 + 0.3
+      let dist = radius * 1.35
+      let drop = SKShapeNode(circleOfRadius: radius * 0.26)
+      drop.fillColor = SKColor(red: 1.0, green: 0.48, blue: 0.04, alpha: 0.38)
+      drop.strokeColor = .clear
+      drop.position = CGPoint(x: point.x + cos(angle) * dist, y: point.y + sin(angle) * dist)
+      drop.zPosition = 3
+      addTransientEffect(drop)
+      drop.run(
+        .sequence([
+          .scale(to: 1.25, duration: 0.08),
+          .wait(forDuration: 1.0),
+          .fadeOut(withDuration: 0.7),
+          .removeFromParent(),
+        ])
+      )
+    }
+
     splat.run(
       .sequence([
-        .scale(to: 1.35, duration: 0.08),
-        .wait(forDuration: 0.8),
-        .fadeOut(withDuration: 0.5),
+        .scale(to: 1.3, duration: 0.08),
+        .wait(forDuration: 1.2),
+        .fadeOut(withDuration: 0.8),
         .removeFromParent(),
       ])
     )

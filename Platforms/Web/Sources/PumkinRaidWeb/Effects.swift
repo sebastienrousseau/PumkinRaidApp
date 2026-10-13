@@ -33,6 +33,18 @@ struct PumpkinSlice {
   var pieceIndex: Int
 }
 
+/// Flying pumpkin seed particle scattered upon slicing.
+struct PumpkinSeedParticle {
+  var x: Double
+  var y: Double
+  var vx: Double
+  var vy: Double
+  var angle: Double
+  var vAngle: Double
+  var size: Double
+  var alpha: Double
+}
+
 /// Floating arcade combo callout.
 struct VisualCallout {
   var text: String
@@ -54,6 +66,7 @@ struct BladePoint {
 /// Authoritative manager of visual effects for the WebAssembly canvas.
 final class VisualEffectsManager {
   private(set) var slices: [PumpkinSlice] = []
+  private(set) var seeds: [PumpkinSeedParticle] = []
   private(set) var particles: [JuiceParticle] = []
   private(set) var splats: [JuiceSplat] = []
   private(set) var callouts: [VisualCallout] = []
@@ -92,6 +105,24 @@ final class VisualEffectsManager {
           size: size,
           alpha: 1.0,
           pieceIndex: piece
+        )
+      )
+    }
+
+    // Spawn 6 flying pumpkin seeds bursting out
+    for i in 0..<6 {
+      let angle = Double(i) * (.pi * 2.0 / 6.0) + Double(identity % 17) * 0.1
+      let speed = 120.0 + Double((identity * 19 + i * 29) % 120)
+      seeds.append(
+        PumpkinSeedParticle(
+          x: x,
+          y: y,
+          vx: cos(angle) * speed,
+          vy: sin(angle) * speed - 60.0,
+          angle: Double(i),
+          vAngle: (i % 2 == 0 ? 1.0 : -1.0) * (6.0 + Double(i)),
+          size: 16.0,
+          alpha: 1.0
         )
       )
     }
@@ -157,6 +188,17 @@ final class VisualEffectsManager {
       return s.alpha > 0.02 ? s : nil
     }
 
+    // Update flying pumpkin seeds with gravity
+    seeds = seeds.compactMap { seed in
+      var s = seed
+      s.vy += 380.0 * dt
+      s.x += s.vx * dt
+      s.y += s.vy * dt
+      s.angle += s.vAngle * dt
+      s.alpha -= 1.3 * dt
+      return s.alpha > 0.02 ? s : nil
+    }
+
     // Update juice particles
     particles = particles.compactMap { particle in
       var p = particle
@@ -185,15 +227,37 @@ final class VisualEffectsManager {
   }
 
   func render(context: JSObject, width: Double, height: Double, document: JSValue) {
-    // 1. Render lingering background juice splats
+    renderSplats(context: context)
+    renderSlices(context: context, document: document)
+    renderSeeds(context: context, document: document)
+    renderParticles(context: context)
+    renderBladeTrail(context: context)
+    renderCallouts(context: context, width: width)
+  }
+
+  private func renderSplats(context: JSObject) {
     for splat in splats {
-      context.fillStyle = .string("rgba(255, 122, 0, \(splat.alpha))")
+      context.fillStyle = .string("rgba(235, 110, 0, \(splat.alpha * 0.5))")
       _ = context.beginPath!()
       _ = context.arc!(splat.x, splat.y, splat.radius, 0, Double.pi * 2)
       _ = context.fill!()
+      let satDist = splat.radius * 1.35
+      let satRadius = splat.radius * 0.32
+      let satellites: [(Double, Double)] = [
+        (-satDist, -satDist * 0.4),
+        (satDist * 0.9, -satDist * 0.6),
+        (satDist * 0.5, satDist * 0.8),
+        (-satDist * 0.7, satDist * 0.7),
+      ]
+      for (dx, dy) in satellites {
+        _ = context.beginPath!()
+        _ = context.arc!(splat.x + dx, splat.y + dy, satRadius, 0, Double.pi * 2)
+        _ = context.fill!()
+      }
     }
+  }
 
-    // 2. Render sliced pumpkin halves (tumbling apart)
+  private func renderSlices(context: JSObject, document: JSValue) {
     for slice in slices {
       let id = "pumpkin-piece-\(slice.pieceIndex)"
       guard let img = document.getElementById(id).object, img.complete.boolean == true else {
@@ -203,13 +267,32 @@ final class VisualEffectsManager {
       _ = context.translate!(slice.x, slice.y)
       _ = context.rotate!(slice.angle)
       context.globalAlpha = .number(slice.alpha)
-      let w = slice.size * 0.95
-      let h = slice.size * 1.35
+      let w = slice.size * 0.76
+      let h = slice.size * 1.0
       _ = context.drawImage!(img, -w / 2, -h / 2, w, h)
       _ = context.restore!()
     }
+  }
 
-    // 3. Render juice particles
+  private func renderSeeds(context: JSObject, document: JSValue) {
+    guard let seedImg = document.getElementById("pumpkin-seed").object,
+      seedImg.complete.boolean == true
+    else {
+      return
+    }
+    for seed in seeds {
+      _ = context.save!()
+      _ = context.translate!(seed.x, seed.y)
+      _ = context.rotate!(seed.angle)
+      context.globalAlpha = .number(seed.alpha)
+      let sw = seed.size * 0.67
+      let sh = seed.size
+      _ = context.drawImage!(seedImg, -sw / 2, -sh / 2, sw, sh)
+      _ = context.restore!()
+    }
+  }
+
+  private func renderParticles(context: JSObject) {
     for p in particles {
       context.fillStyle = .string(p.color)
       context.globalAlpha = .number(p.alpha)
@@ -218,38 +301,37 @@ final class VisualEffectsManager {
       _ = context.fill!()
     }
     context.globalAlpha = .number(1.0)
+  }
 
-    // 4. Render glowing sword blade trail
-    if bladePoints.count >= 2 {
-      _ = context.save!()
-      // Outer glow pass
-      context.strokeStyle = .string("rgba(255, 170, 0, 0.75)")
-      context.shadowColor = .string("#ffaa00")
-      context.shadowBlur = .number(14.0)
-      context.lineCap = .string("round")
-      context.lineJoin = .string("round")
-      context.lineWidth = .number(7.0)
-      _ = context.beginPath!()
-      _ = context.moveTo!(bladePoints[0].x, bladePoints[0].y)
-      for i in 1..<bladePoints.count {
-        _ = context.lineTo!(bladePoints[i].x, bladePoints[i].y)
-      }
-      _ = context.stroke!()
-
-      // Inner white core pass
-      context.strokeStyle = .string("rgba(255, 255, 255, 0.95)")
-      context.shadowBlur = .number(4.0)
-      context.lineWidth = .number(3.0)
-      _ = context.beginPath!()
-      _ = context.moveTo!(bladePoints[0].x, bladePoints[0].y)
-      for i in 1..<bladePoints.count {
-        _ = context.lineTo!(bladePoints[i].x, bladePoints[i].y)
-      }
-      _ = context.stroke!()
-      _ = context.restore!()
+  private func renderBladeTrail(context: JSObject) {
+    guard bladePoints.count >= 2 else { return }
+    _ = context.save!()
+    context.strokeStyle = .string("rgba(255, 170, 0, 0.75)")
+    context.shadowColor = .string("#ffaa00")
+    context.shadowBlur = .number(14.0)
+    context.lineCap = .string("round")
+    context.lineJoin = .string("round")
+    context.lineWidth = .number(7.0)
+    _ = context.beginPath!()
+    _ = context.moveTo!(bladePoints[0].x, bladePoints[0].y)
+    for i in 1..<bladePoints.count {
+      _ = context.lineTo!(bladePoints[i].x, bladePoints[i].y)
     }
+    _ = context.stroke!()
 
-    // 5. Render floating combo text callouts
+    context.strokeStyle = .string("rgba(255, 255, 255, 0.95)")
+    context.shadowBlur = .number(4.0)
+    context.lineWidth = .number(3.0)
+    _ = context.beginPath!()
+    _ = context.moveTo!(bladePoints[0].x, bladePoints[0].y)
+    for i in 1..<bladePoints.count {
+      _ = context.lineTo!(bladePoints[i].x, bladePoints[i].y)
+    }
+    _ = context.stroke!()
+    _ = context.restore!()
+  }
+
+  private func renderCallouts(context: JSObject, width: Double) {
     for callout in callouts {
       _ = context.save!()
       let fontSize = max(16.0, min(36.0, width * 0.038)) * callout.scale
