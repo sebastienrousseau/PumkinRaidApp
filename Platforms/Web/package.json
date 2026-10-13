@@ -6,6 +6,7 @@
     "test:browsers": "node Tests/cross-browser-smoke.mjs"
   },
   "dependencies": {
+    "@bjorn3/browser_wasi_shim": "0.3.0",
     "pumkin-raid-wasm": "file:.build/plugins/PackageToJS/outputs/Package"
   },
   "overrides": {
