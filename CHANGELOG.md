@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.0.1] - 2026-10-13
 
 - Introduce source-derived pumpkin/candy and skull/peppermint control artwork,
   register the owned Creepsville and Gapstown display fonts with Dynamic Type,

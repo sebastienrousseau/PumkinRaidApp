@@ -38,8 +38,13 @@
   </main>
   <script type="module">
     import { init } from "pumkin-raid-wasm";
-    await init();
-    document.documentElement.dataset.swiftReady = "true";
+    try {
+      await init();
+      document.documentElement.dataset.swiftReady = "true";
+    } catch (error) {
+      console.error("Failed to initialize Swift Wasm:", error);
+      document.documentElement.dataset.swiftError = String(error?.stack ?? error?.message ?? error);
+    }
   </script>
 </body>
 </html>

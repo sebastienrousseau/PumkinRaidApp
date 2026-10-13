@@ -12,9 +12,18 @@ for (const [name, browserType] of engines) {
   try {
     const page = await browser.newPage({ viewport: { width: 1_280, height: 800 } });
     const errors = [];
-    page.on("pageerror", (error) => errors.push(error.message));
+    page.on("pageerror", (error) => {
+      console.error(`[${name} pageerror]`, error?.stack ?? error?.message ?? error);
+      errors.push(error?.message ?? String(error));
+    });
     page.on("console", (message) => {
+      console.log(`[${name} console ${message.type()}]`, message.text());
       if (message.type() === "error") errors.push(message.text());
+    });
+    page.on("requestfailed", (request) => {
+      const failText = request.failure()?.errorText ?? "unknown";
+      console.error(`[${name} requestfailed]`, request.url(), failText);
+      errors.push(`Request failed: ${request.url()} (${failText})`);
     });
 
     const deadline = Date.now() + 30_000;
@@ -27,11 +36,24 @@ for (const [name, browserType] of engines) {
         await page.waitForTimeout(250);
       }
     }
-    await page.waitForFunction(
-      () => document.documentElement.dataset.swiftReady === "true",
-      undefined,
-      { timeout: 30_000 }
-    );
+    try {
+      await page.waitForFunction(
+        () => document.documentElement.dataset.swiftReady === "true" || !!document.documentElement.dataset.swiftError,
+        undefined,
+        { timeout: 30_000 }
+      );
+      const swiftError = await page.evaluate(() => document.documentElement.dataset.swiftError);
+      if (swiftError) {
+        throw new Error(`${name}: Swift initialization failed: ${swiftError}`);
+      }
+    } catch (err) {
+      const phase = await page.evaluate(() => document.documentElement.dataset.swiftPhase).catch(() => "unknown");
+      const ready = await page.evaluate(() => document.documentElement.dataset.swiftReady).catch(() => "unknown");
+      const swiftError = await page.evaluate(() => document.documentElement.dataset.swiftError).catch(() => "unknown");
+      console.error(`[${name} TIMEOUT/ERROR] phase=${phase}, swiftReady=${ready}, swiftError=${swiftError}`);
+      console.error(`[${name} TIMEOUT/ERROR] collected errors:`, errors);
+      throw err;
+    }
     const canvasReady = await page.locator("#game").evaluate(
       (canvas) => canvas.width > 0 && canvas.height > 0
     );
