@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-SDK_ID="${SWIFT_WASM_SDK:-swift-6.3.3-RELEASE_wasm}"
+SDK_ID="${SWIFT_WASM_SDK:-swift-6.4.0-RELEASE_wasm}"
 PUMKIN_SWIFT="${PUMKIN_SWIFT:-swift}"
 "$PUMKIN_SWIFT" package --disable-sandbox --swift-sdk "$SDK_ID" js --product PumkinRaidWeb -c release
 
