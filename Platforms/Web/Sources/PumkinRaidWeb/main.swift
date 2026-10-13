@@ -20,6 +20,7 @@ private final class BrowserGame {
   private var currentMode = GameMode.classicRaid
   private var inputRouter = SemanticInputRouter()
   private var pointerIsActive = false
+  private var lastPointerPosition: Vector2?
   private var lastTimestamp = 0.0
   private var accumulator = 0.0
   private var running = false
@@ -89,6 +90,7 @@ private final class BrowserGame {
       guard let self, let event = arguments.first?.object else { return .undefined }
       let point = self.normalizedPointer(event)
       self.pointerIsActive = true
+      self.lastPointerPosition = point
       self.inputRouter.beginPointer(
         at: point,
         timestamp: (event.timeStamp.number ?? 0) / 1_000,
@@ -106,6 +108,10 @@ private final class BrowserGame {
       }
       let point = self.normalizedPointer(event)
       self.inputRouter.movePointer(to: point)
+      if let last = self.lastPointerPosition {
+        self.inputRouter.slice(from: last, to: point)
+      }
+      self.lastPointerPosition = point
       let w = self.canvas.width.number ?? 1
       let h = self.canvas.height.number ?? 1
       self.effects.addBladePoint(x: point.x * w, y: point.y * h)
@@ -119,6 +125,7 @@ private final class BrowserGame {
       let end = self.normalizedPointer(event)
       self.inputRouter.endPointer(at: end, timestamp: (event.timeStamp.number ?? 0) / 1_000)
       self.pointerIsActive = false
+      self.lastPointerPosition = nil
       _ = event.preventDefault!()
       return .undefined
     }
@@ -129,6 +136,7 @@ private final class BrowserGame {
     let blur = JSClosure { [weak self] _ in
       self?.inputRouter.cancelAll()
       self?.pointerIsActive = false
+      self?.lastPointerPosition = nil
       if self?.running == true, self?.simulation.state.isPaused == false {
         self?.inputRouter.enqueue(.pause)
       }
@@ -160,6 +168,7 @@ private final class BrowserGame {
     simulation = GameSimulation(seed: seed, mode: mode)
     inputRouter.cancelAll()
     pointerIsActive = false
+    lastPointerPosition = nil
     lastTimestamp = 0
     accumulator = 0
     running = true
@@ -216,7 +225,8 @@ private final class BrowserGame {
       let pos = lastPumpkinPositions[id] ?? (x: gx, y: gy, radius: min(width, height) * 0.04)
       effects.spawnSlice(atX: pos.x, y: pos.y, size: pos.radius * 2, identity: id)
       let label =
-        combo >= 3 ? "\(combo)x COMBO! +\(points)" : (combo == 2 ? "2x COMBO! +\(points)" : "DASH!")
+        combo >= 3
+        ? "\(combo)x COMBO! +\(points)" : (combo == 2 ? "2x COMBO! +\(points)" : "+\(points)")
       effects.spawnCallout(
         text: label, atX: pos.x, y: pos.y - 25, color: combo >= 3 ? "#ffd54f" : "#ff9a3c")
       playAudio("slice-sound")
@@ -331,8 +341,10 @@ private final class BrowserGame {
       if let image = document.getElementById("pumpkin-sprite-\(frame)").object,
         image.complete.boolean == true
       {
+        let drawRadius = radius * 1.28
         context.globalAlpha = pumpkin.kind == .target ? 1 : 0.72
-        _ = context.drawImage!(image, x - radius, y - radius, radius * 2, radius * 2)
+        _ = context.drawImage!(
+          image, x - drawRadius, y - drawRadius, drawRadius * 2, drawRadius * 2)
         context.globalAlpha = 1
       }
     }
@@ -341,7 +353,7 @@ private final class BrowserGame {
     if let pickup = simulation.state.pickup {
       let px = pickup.position.x * width
       let py = pickup.position.y * height
-      let pRadius = min(width, height) * 0.038
+      let pRadius = min(width, height) * 0.042
       let frame = pickup.kind + 1
       if let image = document.getElementById("sweet-sprite-\(frame)").object,
         image.complete.boolean == true
@@ -350,7 +362,7 @@ private final class BrowserGame {
       } else {
         context.fillStyle = ["#ffe16a", "#64e8ff", "#ff72c6"][pickup.kind]
         _ = context.beginPath!()
-        _ = context.arc!(px, py, min(width, height) * 0.027, 0, Double.pi * 2)
+        _ = context.arc!(px, py, min(width, height) * 0.03, 0, Double.pi * 2)
         _ = context.fill!()
       }
     }
@@ -361,7 +373,7 @@ private final class BrowserGame {
     document.documentElement.object?.dataset.object?.ghostY = .string(String(ghost.y))
     let x = ghost.x * width
     let y = ghost.y * height
-    let radius = min(width, height) * 0.045
+    let radius = min(width, height) * 0.048
     if let image = document.getElementById("ghost-sprite").object,
       image.complete.boolean == true
     {

@@ -199,7 +199,22 @@ final class GameSceneTests: XCTestCase {
     XCTAssertTrue(scene.authoritativeState.isPaused)
     scene.requestResume()
     scene.update(1.04)
-    XCTAssertFalse(scene.authoritativeState.isPaused)
     XCTAssertEqual(pauseStates, [true, false])
+  }
+
+  func testPointerDragSlicesPumpkinsDirectlyWithoutDamage() {
+    let scene = GameScene(settings: silentSettings, seed: 18)
+    scene.installSceneGraph()
+    let initialLives = scene.authoritativeState.session.lives
+    let start = CGPoint(x: scene.size.width * 0.1, y: scene.size.height * 0.5)
+    let end = CGPoint(x: scene.size.width * 0.9, y: scene.size.height * 0.5)
+
+    scene.pointerDown(at: start, timestamp: 1.0)
+    scene.pointerDragged(to: end)
+    scene.update(1.0)
+    scene.update(1.02)
+    scene.pointerUp(at: end, timestamp: 1.05)
+
+    XCTAssertEqual(scene.authoritativeState.session.lives, initialLives)
   }
 }

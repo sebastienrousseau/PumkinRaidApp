@@ -417,7 +417,7 @@ final class GameScene: SKScene {
         } else if combo == 2 {
           label = "2x COMBO!  +\(points)"
         } else {
-          label = "DASH!"
+          label = "+\(points)"
         }
         showCallout(label, at: node.position, color: combo >= 3 ? .yellow : .orange)
         burst(at: node.position, color: .orange, identity: id)
@@ -746,7 +746,10 @@ final class GameScene: SKScene {
   private func moveGesture(to point: CGPoint) {
     if draggingPhantom {
       inputRouter.movePointer(to: normalizedPoint(point))
-      if let previous = gestureLastPoint { drawBladeTrail(from: previous, to: point) }
+      if let previous = gestureLastPoint {
+        drawBladeTrail(from: previous, to: point)
+        inputRouter.slice(from: normalizedPoint(previous), to: normalizedPoint(point))
+      }
     }
     gestureLastPoint = point
   }
@@ -869,8 +872,9 @@ final class GameScene: SKScene {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-      guard let touch = touches.first else { return }
-      moveGesture(to: touch.location(in: self))
+      for touch in touches {
+        moveGesture(to: touch.location(in: self))
+      }
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {

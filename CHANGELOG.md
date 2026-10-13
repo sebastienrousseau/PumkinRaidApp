@@ -3,6 +3,10 @@
 ## [0.0.3] - 2026-10-13
 
 ### Added
+- Add direct sword slicing on continuous touch/pointer swipe gestures across macOS, iOS, Apple TV, and Web.
+- Slicing pumpkins directly destroys targets, awards leaderboard points, and chains combos without player damage.
+- Balance entity and HUD proportions to match arcade Fruit Ninja reference.
+- Update GameEngineLib dependency to v0.4.4.
 - Enhance Fruit Ninja style visuals across Apple and Web platforms.
 - Add neon glowing blade trails with white core and tapering to swipe gestures and dashes.
 - Add parabolic pumpkin slice halves tumbling and rotating with gravity.
