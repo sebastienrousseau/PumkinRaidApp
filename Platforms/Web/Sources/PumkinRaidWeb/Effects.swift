@@ -184,7 +184,7 @@ final class VisualEffectsManager {
     }
   }
 
-  func render(context: JSObject, width: Double, height: Double, document: JSObject) {
+  func render(context: JSObject, width: Double, height: Double, document: JSValue) {
     // 1. Render lingering background juice splats
     for splat in splats {
       context.fillStyle = .string("rgba(255, 122, 0, \(splat.alpha))")
@@ -196,7 +196,7 @@ final class VisualEffectsManager {
     // 2. Render sliced pumpkin halves (tumbling apart)
     for slice in slices {
       let id = "pumpkin-piece-\(slice.pieceIndex)"
-      guard let img = document.getElementById!(id).object, img.complete.boolean == true else {
+      guard let img = document.getElementById(id).object, img.complete.boolean == true else {
         continue
       }
       _ = context.save!()
