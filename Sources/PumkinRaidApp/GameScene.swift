@@ -411,7 +411,14 @@ final class GameScene: SKScene {
       switch event {
       case .destroyed(let id, let combo, let points):
         guard let node = pumpkinNodes[id] else { continue }
-        let label = combo >= 3 ? "\(combo)x COMBO!  +\(points)" : (combo == 2 ? "2x COMBO!  +\(points)" : "DASH!")
+        let label: String
+        if combo >= 3 {
+          label = "\(combo)x COMBO!  +\(points)"
+        } else if combo == 2 {
+          label = "2x COMBO!  +\(points)"
+        } else {
+          label = "DASH!"
+        }
         showCallout(label, at: node.position, color: combo >= 3 ? .yellow : .orange)
         burst(at: node.position, color: .orange, identity: id)
         pumpkinFragments(at: node.position, identity: id)
