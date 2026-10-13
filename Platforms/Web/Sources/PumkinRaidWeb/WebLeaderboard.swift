@@ -47,7 +47,12 @@ final class WebLeaderboard {
     var entries = loadEntries(for: mode)
     let previousBest = entries.first?.score ?? 0
     let isNewBest = score > previousBest && score > 0
-    let currentID = "run_\(Int(Date().timeIntervalSince1970 * 1000))"
+    let currentID: String
+    if let generated = JSObject.global.crypto.object?.randomUUID?().string {
+      currentID = generated
+    } else {
+      currentID = "run_\(Int(Date().timeIntervalSince1970 * 1000))"
+    }
 
     if score > 0 {
       let newEntry = WebLeaderboardEntry(

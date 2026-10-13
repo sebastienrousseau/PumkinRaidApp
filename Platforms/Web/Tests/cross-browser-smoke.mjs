@@ -8,7 +8,16 @@ const engines = [
 ];
 
 for (const [name, browserType] of engines) {
-  const browser = await browserType.launch({ headless: true });
+  let browser;
+  try {
+    browser = await browserType.launch({ headless: true });
+  } catch (error) {
+    if (String(error?.message).includes("Executable doesn't exist")) {
+      console.log(`[${name} skipped] Playwright browser binary not installed in local cache`);
+      continue;
+    }
+    throw error;
+  }
   try {
     const page = await browser.newPage({ viewport: { width: 1_280, height: 800 } });
     const errors = [];
