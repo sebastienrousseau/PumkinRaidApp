@@ -8,6 +8,6 @@ PUMKIN_SWIFT="${PUMKIN_SWIFT:-swift}"
 OUTPUT=".build/plugins/PackageToJS/outputs/Package"
 node Scripts/ensure-wasi-shim.mjs "$OUTPUT"
 npm install --no-audit --no-fund
-npx vite build Web --outDir ../dist --emptyOutDir
+npx vite build Web --outDir ../dist --base ./ --emptyOutDir
 
 echo "Web release ready at dist/index.html (Swift package: $OUTPUT)"

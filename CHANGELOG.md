@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.2] - 2026-10-13
+
+### Added
+- Add automated HTML5 build artifact upload (`pumkin-raid-web`) to CI pipeline.
+- Add automated GitHub Pages deployment for the HTML5 WebAssembly game release.
+- Build Web with relative asset base (`--base ./`) for cross-host portability.
+
 ## [0.0.1] - 2026-10-13
 
 - Introduce source-derived pumpkin/candy and skull/peppermint control artwork,

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "record:demo": "node Scripts/record-demo.mjs",
     "test:browsers": "node Tests/cross-browser-smoke.mjs"
   },
   "dependencies": {

@@ -2,6 +2,8 @@ name: Swift
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 on:
   push:
@@ -100,6 +102,12 @@ jobs:
         env:
           SWIFT_WASM_SDK: swift-6.4.0-RELEASE_wasm
         run: ./Scripts/build.sh
+      - name: Upload HTML5 release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pumkin-raid-web
+          path: Platforms/Web/dist
+          if-no-files-found: error
       - name: Audit web dependencies
         run: npm audit --audit-level=low
       - name: Install browser test engines
@@ -108,3 +116,27 @@ jobs:
         run: |
           npx vite preview --host 127.0.0.1 --port 8765 &
           npm run test:browsers
+
+  deploy-pages:
+    name: Deploy HTML5 game to GitHub Pages
+    if: github.ref == 'refs/heads/main'
+    needs: web-build-and-smoke
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download web artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pumkin-raid-web
+          path: dist
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

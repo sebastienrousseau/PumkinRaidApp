@@ -14,6 +14,10 @@
   <a href="Package.swift"><img src="https://img.shields.io/badge/Swift-6.0+-93450a.svg?style=for-the-badge&logo=swift" alt="Swift 6.0+" height="28" /></a>
 </p>
 
+<p align="center">
+  <img src=".github/demo.gif" alt="Pumkin Raid arcade gameplay demonstration" width="100%" />
+</p>
+
 ---
 
 ## Contents
