@@ -46,81 +46,86 @@ if (swiftError) {
 
 await page.waitForFunction(() => document.querySelector("#ghost-sprite").complete);
 console.log("Game engine ready! Showing title screen...");
-// Record title screen for 1 second
-await page.waitForTimeout(1000);
 
-console.log("Hovering and clicking Play...");
+// 1. Showcase title screen
+await page.waitForTimeout(800);
+
+// 2. Click Play to start raid
+console.log("Clicking Play to start raid...");
 await page.locator("#play").hover();
-await page.waitForTimeout(250);
+await page.waitForTimeout(150);
 await page.locator("#play").click();
 
 await page.waitForFunction(() => document.querySelector("#menu").classList.contains("hidden"));
-console.log("Raid started!");
+console.log("Raid active! Commencing Fruit Ninja style gameplay choreography...");
 
-// Get game canvas bounds
 const box = await page.locator("#game").boundingBox();
+if (!box) throw new Error("Canvas #game not found");
 
-// Choreographed gameplay:
-// 1. Move ghost smoothly right and up towards first pumpkin cluster
-await page.keyboard.down("ArrowRight");
-await page.keyboard.down("ArrowUp");
-await page.waitForTimeout(350);
-await page.keyboard.up("ArrowUp");
-await page.keyboard.up("ArrowRight");
-
-// 2. Dash!
-await page.keyboard.press("Space");
-console.log("Dash 1 executed");
-await page.waitForTimeout(250);
-
-// 3. Mouse sweep across middle screen to intercept pumpkins
-if (box) {
-  const midX = box.x + box.width * 0.55;
-  const midY = box.y + box.height * 0.45;
-  await page.mouse.move(midX, midY);
+// Helper for dynamic Fruit-Ninja sword slashes
+async function swipe(startX, startY, endX, endY, steps = 14, pauseAfterMs = 120) {
+  await page.mouse.move(box.x + startX, box.y + startY);
   await page.mouse.down();
-  
-  // Sweep left
-  await page.mouse.move(box.x + box.width * 0.25, box.y + box.height * 0.4, { steps: 10 });
-  await page.waitForTimeout(200);
-  
-  // Dash during sweep!
-  await page.keyboard.press("Space");
-  console.log("Dash 2 during sweep");
-  
-  // Sweep up-right towards high pumpkins
-  await page.mouse.move(box.x + box.width * 0.75, box.y + box.height * 0.35, { steps: 12 });
-  await page.waitForTimeout(200);
-  
-  // Shriek! Destroys all visible pumpkins on screen
-  await page.keyboard.press("Enter");
-  console.log("Shriek activated!");
-  await page.waitForTimeout(300);
-
-  // Sweep down-left to gather falling remnants
-  await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.6, { steps: 10 });
-  await page.waitForTimeout(200);
+  await page.mouse.move(box.x + endX, box.y + endY, { steps });
   await page.mouse.up();
+  if (pauseAfterMs > 0) {
+    await page.waitForTimeout(pauseAfterMs);
+  }
 }
 
-// 4. Quick directional dodge and final dash
-await page.keyboard.down("ArrowRight");
+// Initial movement: Rise up from ground into the pumpkin flock
+console.log("Ascending into pumpkin flock...");
+await page.keyboard.down("ArrowUp");
 await page.waitForTimeout(300);
-await page.keyboard.up("ArrowRight");
-await page.keyboard.press("Space");
-console.log("Final dash executed");
+await page.keyboard.up("ArrowUp");
 
-await page.waitForTimeout(600);
+// Slash 1: Rapid diagonal slice through ascending pumpkins
+console.log("Executing Slash 1 (Ascending diagonal cut)...");
+await swipe(box.width * 0.22, box.height * 0.52, box.width * 0.48, box.height * 0.26, 12, 140);
+
+// Dash attack cutting right through the middle cluster!
+console.log("Executing Dash attack through middle cluster...");
+await page.keyboard.down("ArrowRight");
+await page.keyboard.press("Space");
+await page.waitForTimeout(180);
+await page.keyboard.up("ArrowRight");
+
+// Slash 2: High-speed counter-cut slicing across upper pumpkins
+console.log("Executing Slash 2 (Counter cross-cut)...");
+await swipe(box.width * 0.78, box.height * 0.28, box.width * 0.32, box.height * 0.38, 14, 150);
+
+// Dash attack left!
+console.log("Executing Dash attack left...");
+await page.keyboard.down("ArrowLeft");
+await page.keyboard.press("Space");
+await page.waitForTimeout(180);
+await page.keyboard.up("ArrowLeft");
+
+// Slash 3: Broad rising arc slice
+console.log("Executing Slash 3 (Rising arc slice)...");
+await swipe(box.width * 0.28, box.height * 0.42, box.width * 0.72, box.height * 0.24, 16, 200);
+
+// Shriek shockwave to detonate remaining pumpkins!
+console.log("Triggering Shriek shockwave!");
+await page.keyboard.press("Enter");
+await page.waitForTimeout(300);
+
+// Slash 4: Rapid descending cross-cut on tumbling pumpkin halves
+console.log("Executing Slash 4 (Descending slice)...");
+await swipe(box.width * 0.68, box.height * 0.26, box.width * 0.42, box.height * 0.52, 14, 150);
+
+// Settle smoothly for 1.2s to showcase the score, glowing splatters, and calm aftermath without abrupt cut
+console.log("Letting gameplay settle gracefully...");
+await page.waitForTimeout(1200);
 
 const finalScore = await page.locator("#score").textContent();
-console.log(`Final HUD state: ${finalScore}`);
+console.log(`Action demonstration complete. HUD Score: ${finalScore}`);
 
-// Close page & context to finalize video
-await page.close();
+// Note: Close context directly WITHOUT page.close() to avoid white frame flash
 await context.close();
 await browser.close();
 
-console.log("Video written successfully!");
+console.log("Recording finalized!");
 for (const file of fs.readdirSync(outputDir)) {
   const stat = fs.statSync(`${outputDir}/${file}`);
   console.log(`- ${file} (${stat.size} bytes)`);
