@@ -103,11 +103,11 @@ struct GameOverLayoutMetrics: Equatable {
   var isWideDesktop: Bool { size.width >= 1_200 && size.height >= 700 }
   var cardWidth: CGFloat {
     isLandscape
-      ? min(isWideDesktop ? 620 : 520, max(340, size.width * 0.44))
-      : min(560, max(300, size.width - 48))
+      ? min(620, max(380, size.width * 0.52))
+      : min(600, max(300, size.width - 32))
   }
   var topInset: CGFloat {
-    isLandscape ? max(76, safeTop + 18) : max(170, size.height * 0.19)
+    isLandscape ? max(68, safeTop + 12) : max(140, size.height * 0.16)
   }
   var bottomInset: CGFloat { max(24, safeBottom + 16) }
   var availableHeight: CGFloat { max(1, size.height - topInset - bottomInset) }

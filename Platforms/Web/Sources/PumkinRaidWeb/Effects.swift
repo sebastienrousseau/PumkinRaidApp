@@ -335,7 +335,8 @@ final class VisualEffectsManager {
     for callout in callouts {
       _ = context.save!()
       let fontSize = max(18.0, min(42.0, width * 0.042)) * callout.scale
-      context.font = .string("900 \(fontSize)px 'Gang of Three', ui-rounded, 'Avenir Next', system-ui, sans-serif")
+      let fontFamily = "'Gang of Three', ui-rounded, 'Avenir Next', system-ui, sans-serif"
+      context.font = .string("900 \(fontSize)px \(fontFamily)")
       context.textAlign = .string("center")
       context.textBaseline = .string("middle")
       context.shadowColor = .string("#000000")

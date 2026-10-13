@@ -31,8 +31,41 @@
           <button id="zen" type="button">&#127807; SPIRIT ZEN</button>
           <button id="daily" type="button">&#128123; DAILY HAUNT</button>
           <button id="boss" type="button">&#9876; BOSS RAID</button>
+          <button id="scores-btn" type="button">&#127942; HIGH SCORES</button>
         </div>
         <p class="best">&#9733; LOCAL RECORD <strong id="best">0</strong></p>
+      </div>
+    </section>
+    <section id="gameover" class="menu hidden">
+      <div class="dojo-board leaderboard-board">
+        <span class="bolt bolt-tl"></span>
+        <span class="bolt bolt-tr"></span>
+        <span class="bolt bolt-bl"></span>
+        <span class="bolt bolt-br"></span>
+        <p class="eyebrow">&#9733; DOJO RESULTS &#9733;</p>
+        <h1 id="gameover-title">GAME<br><span>OVER</span></h1>
+        <div class="score-plaque">
+          <span class="score-label">FINAL SCORE</span>
+          <span id="final-score" class="score-display">0</span>
+          <div id="new-high-badge" class="high-badge hidden">&#9733; NEW HIGH SCORE! &#9733;</div>
+          <div class="run-stats">
+            <span class="stat-item">SMASHED: <strong id="stat-smashed">0</strong></span>
+            <span class="stat-sep">&#8226;</span>
+            <span class="stat-item">BEST COMBO: <strong id="stat-combo">0</strong></span>
+          </div>
+        </div>
+        <div class="leaderboard-container">
+          <div class="leaderboard-header">
+            <span class="trophy-title">&#127942; TOP NINJAS</span>
+            <span class="record-tag">BEST <strong id="top-record">0</strong></span>
+          </div>
+          <div id="leaderboard-rows" class="leaderboard-rows" role="table" aria-label="High scores list">
+          </div>
+        </div>
+        <div class="gameover-actions">
+          <button id="replay-btn" type="button" class="btn-primary">&#127875; SLICE TO REPLAY</button>
+          <button id="menu-btn" type="button" class="btn-secondary">&#127968; MAIN MENU</button>
+        </div>
       </div>
     </section>
     <img id="ghost-sprite" class="preload" src="assets/phantom.png" alt="">

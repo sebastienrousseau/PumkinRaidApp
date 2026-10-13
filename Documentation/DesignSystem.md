@@ -29,7 +29,7 @@
   keyboard activation, and provide pressed feedback without motion when Reduce Motion
   is enabled.
 - White text sits on a dark quiet center with high-luminance borders; toggle state is
-  conveyed through selection, brightness, and an announced On/Off value—not color alone.
+  conveyed through selection, brightness, and an announced On/Off value, not color alone.
 
 ## Future screen-specific art
 

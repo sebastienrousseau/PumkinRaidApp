@@ -286,7 +286,7 @@ struct ModeSelectionView: View {
             modeCard(
               .spiritZen,
               title: "Spirit Zen",
-              detail: "No game over—practice movement and flowing combos.",
+              detail: "No game over: practice movement and flowing combos.",
               symbol: "moon.stars.fill"
             )
             modeCard(
@@ -737,18 +737,28 @@ struct GameOverView: View {
         safeTop: proxy.safeAreaInsets.top,
         safeBottom: proxy.safeAreaInsets.bottom
       )
-      let entryLimit = proxy.size.height < 760 ? 2 : proxy.size.height < 980 ? 3 : 5
+      let entryLimit = proxy.size.height < 680 ? 3 : proxy.size.height < 860 ? 5 : 7
       let visibleEntries = Array(leaderboard.entries.prefix(entryLimit))
-      let rowHeight: CGFloat = proxy.size.height < 760 ? 44 : 54
+      let rowHeight: CGFloat = proxy.size.height < 760 ? 50 : 58
       ZStack {
         gameOverBackdrop(isLandscape: layout.isLandscape, size: proxy.size)
         if layout.isLandscape {
           Text("GAME OVER")
-            .font(RaidTypography.screenTitle)
-            .foregroundStyle(.orange)
-            .shadow(color: .black.opacity(0.75), radius: 4, y: 2)
+            .font(.custom("Gang of Three", size: 40, relativeTo: .largeTitle))
+            .foregroundStyle(
+              LinearGradient(
+                colors: [
+                  Color(red: 1.0, green: 0.98, blue: 0.8),
+                  Color(red: 1.0, green: 0.78, blue: 0.2),
+                  Color(red: 0.92, green: 0.24, blue: 0.02),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+              )
+            )
+            .shadow(color: .black.opacity(0.85), radius: 5, y: 3)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .padding(.top, 12)
+            .padding(.top, 10)
         }
 
         ScrollView {
@@ -787,12 +797,23 @@ struct GameOverView: View {
     visibleEntries: [LeaderboardEntry]
   ) -> some View {
     VStack(spacing: 0) {
-      VStack(spacing: 5) {
+      VStack(spacing: 6) {
         Text("\(summary.score)")
-          .font(.custom("Gang of Three", size: 52, relativeTo: .largeTitle))
-          .foregroundStyle(.white)
+          .font(.custom("Gang of Three", size: 64, relativeTo: .largeTitle))
+          .foregroundStyle(
+            LinearGradient(
+              colors: [
+                Color(red: 1.0, green: 0.98, blue: 0.82),
+                Color(red: 1.0, green: 0.8, blue: 0.2),
+                Color(red: 1.0, green: 0.45, blue: 0.0),
+              ],
+              startPoint: .top,
+              endPoint: .bottom
+            )
+          )
+          .shadow(color: .black.opacity(0.8), radius: 3, y: 3)
           .monospacedDigit()
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
           resultMetric("Smashed", summary.statistics.destroyed)
           resultMetric("Near misses", summary.statistics.nearMisses)
           resultMetric("Best combo", summary.statistics.bestCombo)
@@ -804,27 +825,33 @@ struct GameOverView: View {
         .foregroundStyle(.cyan)
         .lineLimit(1)
         .minimumScaleFactor(0.75)
-        if summary.assisted {
-          Text("ASSISTED RUN")
-            .font(RaidTypography.caption)
+        if progression.isNewBest {
+          Text("★ NEW HIGH SCORE! ★")
+            .font(.custom("Gang of Three", size: 16))
             .foregroundStyle(.yellow)
-        } else if progression.isNewBest {
-          Text("NEW PERSONAL BEST")
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
+            .background(Color.yellow.opacity(0.18), in: Capsule())
+            .overlay(Capsule().stroke(Color.yellow.opacity(0.6), lineWidth: 1))
+        } else if summary.assisted {
+          Text("ASSISTED RUN")
             .font(RaidTypography.caption)
             .foregroundStyle(.yellow)
         }
       }
-      .frame(minHeight: 128)
+      .frame(minHeight: 140)
 
       HStack {
-        Label("\(modeTitle) LEADERBOARD", systemImage: "trophy.fill")
+        Label("\(modeTitle) HIGH SCORES", systemImage: "trophy.fill")
+          .font(.custom("Gang of Three", size: 19))
         Spacer()
-        Text("BEST  \(leaderboard.bestScore)")
+        Text("RECORD  \(leaderboard.bestScore)")
+          .font(.custom("Gang of Three", size: 17))
+          .foregroundStyle(.yellow)
           .monospacedDigit()
       }
-      .font(RaidTypography.support)
       .foregroundStyle(.orange)
-      .frame(height: 56)
+      .frame(height: 48)
 
       Divider().overlay(.white.opacity(0.25))
 
@@ -841,18 +868,18 @@ struct GameOverView: View {
       }
     }
     .padding(.horizontal, min(30, width * 0.07))
-    .padding(.vertical, 12)
+    .padding(.vertical, 14)
     .frame(width: width)
     .background {
       ZStack {
         RoundedRectangle(cornerRadius: 20)
-          .fill(.black.opacity(0.9))
+          .fill(.black.opacity(0.92))
         BundledImage(name: "leaderboard-panel")
           .scaledToFill()
-          .opacity(0.5)
+          .opacity(0.65)
           .clipShape(RoundedRectangle(cornerRadius: 20))
         LinearGradient(
-          colors: [.black.opacity(0.08), .black.opacity(0.48)],
+          colors: [.black.opacity(0.06), .black.opacity(0.55)],
           startPoint: .top,
           endPoint: .bottom
         )
@@ -861,7 +888,14 @@ struct GameOverView: View {
     }
     .overlay(
       RoundedRectangle(cornerRadius: 20)
-        .stroke(.orange.opacity(0.9), lineWidth: 1.5)
+        .stroke(
+          LinearGradient(
+            colors: [Color.yellow.opacity(0.9), Color.orange.opacity(0.9), Color.red.opacity(0.7)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+          ),
+          lineWidth: 2
+        )
     )
   }
 
@@ -936,26 +970,99 @@ struct GameOverView: View {
   }
 
   private func leaderboardRow(rank: Int, entry: LeaderboardEntry) -> some View {
-    ZStack {
-      Text("\(entry.score)")
-        .monospacedDigit()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-
-      HStack(spacing: 8) {
-        Text("#\(rank)")
-          .frame(width: 34, alignment: .leading)
-          .foregroundStyle(rank == 1 ? .yellow : .white.opacity(0.65))
+    HStack(spacing: 12) {
+      rankMedallion(rank)
+      HStack(spacing: 6) {
         Text(entry.playerName)
+          .font(.system(size: 16, weight: .bold, design: .rounded))
           .lineLimit(1)
-        Spacer()
+        if entry.id == entryID {
+          Text("YOU")
+            .font(.system(size: 11, weight: .heavy))
+            .foregroundStyle(.black)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.orange, in: Capsule())
+        }
       }
+      Spacer()
+      Text("\(entry.score)")
+        .font(.custom("Gang of Three", size: 24, relativeTo: .title3))
+        .foregroundStyle(Color.yellow)
+        .monospacedDigit()
     }
-    .font(RaidTypography.body.weight(entry.id == entryID ? .heavy : .semibold))
-    .foregroundStyle(entry.id == entryID ? .orange : .white)
-    .padding(.horizontal, 8)
+    .padding(.horizontal, 12)
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(
-      entry.id == entryID ? Color.orange.opacity(0.14) : .clear,
-      in: RoundedRectangle(cornerRadius: 9)
+      entry.id == entryID ? Color.orange.opacity(0.18) : Color.white.opacity(0.04),
+      in: RoundedRectangle(cornerRadius: 10)
     )
+    .overlay(
+      RoundedRectangle(cornerRadius: 10)
+        .stroke(entry.id == entryID ? Color.orange : Color.white.opacity(0.08), lineWidth: 1)
+    )
+  }
+
+  @ViewBuilder
+  private func rankMedallion(_ rank: Int) -> some View {
+    switch rank {
+    case 1:
+      ZStack {
+        Circle()
+          .fill(
+            LinearGradient(
+              colors: [
+                Color(red: 1.0, green: 0.9, blue: 0.3),
+                Color(red: 0.95, green: 0.65, blue: 0.0),
+              ],
+              startPoint: .top,
+              endPoint: .bottom
+            )
+          )
+          .frame(width: 28, height: 28)
+          .shadow(color: .yellow.opacity(0.5), radius: 4)
+        Text("1")
+          .font(.system(size: 15, weight: .black, design: .rounded))
+          .foregroundStyle(.black)
+      }
+    case 2:
+      ZStack {
+        Circle()
+          .fill(
+            LinearGradient(
+              colors: [Color(white: 0.95), Color(white: 0.7)],
+              startPoint: .top,
+              endPoint: .bottom
+            )
+          )
+          .frame(width: 26, height: 26)
+        Text("2")
+          .font(.system(size: 14, weight: .black, design: .rounded))
+          .foregroundStyle(.black)
+      }
+    case 3:
+      ZStack {
+        Circle()
+          .fill(
+            LinearGradient(
+              colors: [
+                Color(red: 0.9, green: 0.6, blue: 0.3),
+                Color(red: 0.65, green: 0.35, blue: 0.15),
+              ],
+              startPoint: .top,
+              endPoint: .bottom
+            )
+          )
+          .frame(width: 26, height: 26)
+        Text("3")
+          .font(.system(size: 14, weight: .black, design: .rounded))
+          .foregroundStyle(.black)
+      }
+    default:
+      Text("#\(rank)")
+        .font(.system(size: 14, weight: .bold, design: .monospaced))
+        .foregroundStyle(.white.opacity(0.55))
+        .frame(width: 26, alignment: .center)
+    }
   }
 }

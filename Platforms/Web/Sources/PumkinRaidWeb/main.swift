@@ -25,6 +25,7 @@ private final class BrowserGame {
   private var accumulator = 0.0
   private var running = false
   private let effects = VisualEffectsManager()
+  private let leaderboard = WebLeaderboard()
   private var lastPumpkinPositions: [Int: (x: Double, y: Double, radius: Double)] = [:]
   private var frameClosure: JSClosure?
   private var eventClosures: [JSClosure] = []
@@ -68,6 +69,21 @@ private final class BrowserGame {
       button.onclick = JSValue.object(closure)
       eventClosures.append(closure)
     }
+    eventClosures += leaderboard.installButtons(
+      document: document,
+      onShowScores: { [weak self] in
+        guard let self else { return }
+        self.leaderboard.showLeaderboard(
+          document: self.document,
+          mode: self.currentMode,
+          bestScore: self.currentGlobalBest()
+        )
+      },
+      onReplay: { [weak self] in
+        guard let self else { return }
+        self.start(mode: self.currentMode)
+      }
+    )
     updateBestScore()
   }
 
@@ -172,6 +188,7 @@ private final class BrowserGame {
     lastTimestamp = 0
     accumulator = 0
     running = true
+    _ = document.getElementById("gameover").object?.classList.add("hidden")
     _ = document.getElementById("menu").object?.classList.add("hidden")
     _ = document.getElementById("music").object?.play?()
     scheduleFrame()
@@ -207,10 +224,17 @@ private final class BrowserGame {
     updateHUD()
     if simulation.state.isGameOver {
       running = false
-      saveBestScore(simulation.state.session.score)
+      let score = simulation.state.session.score
+      saveBestScore(score)
       _ = document.getElementById("music").object?.pause?()
-      _ = document.getElementById("menu").object?.classList.remove("hidden")
-      document.getElementById("play").object?.innerText = .string("🎃 SLICE TO REPLAY")
+      leaderboard.showGameOver(
+        document: document,
+        score: score,
+        smashed: simulation.state.statistics.destroyed,
+        combo: simulation.state.statistics.bestCombo,
+        mode: currentMode,
+        bestScore: currentGlobalBest()
+      )
     } else {
       scheduleFrame()
     }
@@ -448,13 +472,15 @@ private final class BrowserGame {
     updateBestScore()
   }
 
+  private func currentGlobalBest() -> Int {
+    guard let storage = window.localStorage.object else { return 0 }
+    return GameMode.allCases.compactMap {
+      Int(storage.getItem!("pumkinRaid.best.\($0.rawValue)").string ?? "0")
+    }.max() ?? 0
+  }
+
   private func updateBestScore() {
-    guard let storage = window.localStorage.object else { return }
-    let best =
-      GameMode.allCases.map {
-        Int(storage.getItem!("pumkinRaid.best.\($0.rawValue)").string ?? "0") ?? 0
-      }.max() ?? 0
-    document.getElementById("best").object?.innerText = .string(String(best))
+    document.getElementById("best").object?.innerText = .string(String(currentGlobalBest()))
   }
 }
 
