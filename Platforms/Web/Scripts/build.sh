@@ -6,6 +6,7 @@ PUMKIN_SWIFT="${PUMKIN_SWIFT:-swift}"
 "$PUMKIN_SWIFT" package --disable-sandbox --swift-sdk "$SDK_ID" js --product PumkinRaidWeb -c release
 
 OUTPUT=".build/plugins/PackageToJS/outputs/Package"
+node Scripts/ensure-wasi-shim.mjs "$OUTPUT"
 npm install --no-audit --no-fund
 npx vite build Web --outDir ../dist --emptyOutDir
 
