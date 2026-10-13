@@ -121,16 +121,16 @@ final class VisualEffectsManager {
           vy: sin(angle) * speed - 60.0,
           angle: Double(i),
           vAngle: (i % 2 == 0 ? 1.0 : -1.0) * (6.0 + Double(i)),
-          size: 16.0,
+          size: 24.0,
           alpha: 1.0
         )
       )
     }
 
-    // Spawn 16 juice droplets
+    // Spawn 20 juice droplets
     let colors = ["#ff7a00", "#ffa726", "#ff5722", "#ffd54f"]
-    for i in 0..<16 {
-      let angle = Double(i) * (.pi * 2.0 / 16.0) + Double(identity % 20) * 0.05
+    for i in 0..<20 {
+      let angle = Double(i) * (.pi * 2.0 / 20.0) + Double(identity % 20) * 0.05
       let speed = 90.0 + Double((identity * 17 + i * 23) % 140)
       particles.append(
         JuiceParticle(
@@ -138,7 +138,7 @@ final class VisualEffectsManager {
           y: y,
           vx: cos(angle) * speed,
           vy: sin(angle) * speed - 40.0,
-          radius: 2.5 + Double(i % 4),
+          radius: 3.5 + Double(i % 5),
           alpha: 1.0,
           color: colors[i % colors.count]
         )
@@ -147,7 +147,7 @@ final class VisualEffectsManager {
 
     // Lingering juice splat on backdrop
     splats.append(
-      JuiceSplat(x: x, y: y, radius: 18.0 + Double(identity % 14), alpha: 0.45)
+      JuiceSplat(x: x, y: y, radius: 28.0 + Double(identity % 18), alpha: 0.45)
     )
     if splats.count > 18 { splats.removeFirst() }
   }
@@ -267,8 +267,8 @@ final class VisualEffectsManager {
       _ = context.translate!(slice.x, slice.y)
       _ = context.rotate!(slice.angle)
       context.globalAlpha = .number(slice.alpha)
-      let w = slice.size * 0.76
-      let h = slice.size * 1.0
+      let w = slice.size * 0.82
+      let h = slice.size * 1.12
       _ = context.drawImage!(img, -w / 2, -h / 2, w, h)
       _ = context.restore!()
     }
@@ -306,12 +306,12 @@ final class VisualEffectsManager {
   private func renderBladeTrail(context: JSObject) {
     guard bladePoints.count >= 2 else { return }
     _ = context.save!()
-    context.strokeStyle = .string("rgba(255, 170, 0, 0.75)")
+    context.strokeStyle = .string("rgba(255, 170, 0, 0.85)")
     context.shadowColor = .string("#ffaa00")
-    context.shadowBlur = .number(14.0)
+    context.shadowBlur = .number(18.0)
     context.lineCap = .string("round")
     context.lineJoin = .string("round")
-    context.lineWidth = .number(7.0)
+    context.lineWidth = .number(10.0)
     _ = context.beginPath!()
     _ = context.moveTo!(bladePoints[0].x, bladePoints[0].y)
     for i in 1..<bladePoints.count {
@@ -321,7 +321,7 @@ final class VisualEffectsManager {
 
     context.strokeStyle = .string("rgba(255, 255, 255, 0.95)")
     context.shadowBlur = .number(4.0)
-    context.lineWidth = .number(3.0)
+    context.lineWidth = .number(4.0)
     _ = context.beginPath!()
     _ = context.moveTo!(bladePoints[0].x, bladePoints[0].y)
     for i in 1..<bladePoints.count {
@@ -334,8 +334,8 @@ final class VisualEffectsManager {
   private func renderCallouts(context: JSObject, width: Double) {
     for callout in callouts {
       _ = context.save!()
-      let fontSize = max(16.0, min(36.0, width * 0.038)) * callout.scale
-      context.font = .string("900 \(fontSize)px ui-rounded, 'Avenir Next', system-ui, sans-serif")
+      let fontSize = max(18.0, min(42.0, width * 0.042)) * callout.scale
+      context.font = .string("900 \(fontSize)px 'Gang of Three', ui-rounded, 'Avenir Next', system-ui, sans-serif")
       context.textAlign = .string("center")
       context.textBaseline = .string("middle")
       context.shadowColor = .string("#000000")

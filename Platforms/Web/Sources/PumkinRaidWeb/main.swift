@@ -210,7 +210,7 @@ private final class BrowserGame {
       saveBestScore(simulation.state.session.score)
       _ = document.getElementById("music").object?.pause?()
       _ = document.getElementById("menu").object?.classList.remove("hidden")
-      document.getElementById("play").object?.innerText = .string("PLAY CLASSIC AGAIN")
+      document.getElementById("play").object?.innerText = .string("🎃 SLICE TO REPLAY")
     } else {
       scheduleFrame()
     }
@@ -222,7 +222,7 @@ private final class BrowserGame {
     let gy = ghost.y * height
     switch event {
     case .destroyed(let id, let combo, let points):
-      let pos = lastPumpkinPositions[id] ?? (x: gx, y: gy, radius: min(width, height) * 0.04)
+      let pos = lastPumpkinPositions[id] ?? (x: gx, y: gy, radius: min(width, height) * 0.09)
       effects.spawnSlice(atX: pos.x, y: pos.y, size: pos.radius * 2, identity: id)
       let label =
         combo >= 3
@@ -310,15 +310,25 @@ private final class BrowserGame {
     _ = context.clearRect!(0, 0, width, height)
 
     let hasShake = effects.shake > 0.1
-    var shakeX = 0.0
-    var shakeY = 0.0
     if hasShake {
-      shakeX = Double.random(in: -1...1) * effects.shake
-      shakeY = Double.random(in: -1...1) * effects.shake
+      let shakeX = Double.random(in: -1...1) * effects.shake
+      let shakeY = Double.random(in: -1...1) * effects.shake
       _ = context.save!()
       _ = context.translate!(shakeX, shakeY)
     }
 
+    renderAtmosphere(width: width, height: height)
+    effects.render(context: context, width: width, height: height, document: document)
+    renderPumpkins(width: width, height: height)
+    renderSweet(width: width, height: height)
+    renderGhost(width: width, height: height)
+
+    if hasShake {
+      _ = context.restore!()
+    }
+  }
+
+  private func renderAtmosphere(width: Double, height: Double) {
     let gradient = context.createLinearGradient!(0, 0, 0, height).object!
     _ = gradient.addColorStop!(0, "rgba(7,16,33,.35)")
     _ = gradient.addColorStop!(1, "rgba(39,7,10,.72)")
@@ -326,69 +336,79 @@ private final class BrowserGame {
     _ = context.fillRect!(0, 0, width, height)
     context.fillStyle = .string(modeTint(currentMode))
     _ = context.fillRect!(0, 0, width, height)
+  }
 
-    // Render juice splats, sliced pumpkin halves, particles, and floating callouts
-    effects.render(context: context, width: width, height: height, document: document)
-
-    // Render active whole pumpkins and record positions
+  private func renderPumpkins(width: Double, height: Double) {
     lastPumpkinPositions.removeAll(keepingCapacity: true)
     for pumpkin in simulation.state.pumpkins {
       let x = pumpkin.position.x * width
       let y = pumpkin.position.y * height
       let radius = pumpkin.radius * min(width, height)
-      lastPumpkinPositions[pumpkin.id] = (x: x, y: y, radius: radius)
+      let drawRadius = radius * 2.3
+      lastPumpkinPositions[pumpkin.id] = (x: x, y: y, radius: drawRadius)
       let frame = (Int(simulation.state.tick / 10 % 3) + pumpkin.id) % 3 + 1
-      if let image = document.getElementById("pumpkin-sprite-\(frame)").object,
-        image.complete.boolean == true
-      {
-        let drawRadius = radius * 1.28
-        context.globalAlpha = pumpkin.kind == .target ? 1 : 0.72
-        _ = context.drawImage!(
-          image, x - drawRadius, y - drawRadius, drawRadius * 2, drawRadius * 2)
-        context.globalAlpha = 1
-      }
+      guard let img = document.getElementById("pumpkin-sprite-\(frame)").object,
+        img.complete.boolean == true
+      else { continue }
+      context.globalAlpha = pumpkin.kind == .target ? 1 : 0.72
+      _ = context.drawImage!(
+        img, x - drawRadius, y - drawRadius, drawRadius * 2, drawRadius * 2)
+      context.globalAlpha = 1
     }
+  }
 
-    // Render sweet pickup
-    if let pickup = simulation.state.pickup {
-      let px = pickup.position.x * width
-      let py = pickup.position.y * height
-      let pRadius = min(width, height) * 0.042
-      let frame = pickup.kind + 1
-      if let image = document.getElementById("sweet-sprite-\(frame)").object,
-        image.complete.boolean == true
-      {
-        _ = context.drawImage!(image, px - pRadius, py - pRadius, pRadius * 2, pRadius * 2)
-      } else {
-        context.fillStyle = ["#ffe16a", "#64e8ff", "#ff72c6"][pickup.kind]
-        _ = context.beginPath!()
-        _ = context.arc!(px, py, min(width, height) * 0.03, 0, Double.pi * 2)
-        _ = context.fill!()
-      }
+  private func renderSweet(width: Double, height: Double) {
+    guard let pickup = simulation.state.pickup else { return }
+    let px = pickup.position.x * width
+    let py = pickup.position.y * height
+    let pRadius = min(width, height) * 0.072
+    let frame = pickup.kind + 1
+    _ = context.save!()
+    context.fillStyle = .string("rgba(255, 215, 0, 0.22)")
+    _ = context.beginPath!()
+    _ = context.arc!(px, py, pRadius * 1.3, 0, Double.pi * 2)
+    _ = context.fill!()
+    if let image = document.getElementById("sweet-sprite-\(frame)").object,
+      image.complete.boolean == true
+    {
+      _ = context.drawImage!(image, px - pRadius, py - pRadius, pRadius * 2, pRadius * 2)
+    } else {
+      context.fillStyle = ["#ffe16a", "#64e8ff", "#ff72c6"][pickup.kind]
+      _ = context.beginPath!()
+      _ = context.arc!(px, py, pRadius * 0.8, 0, Double.pi * 2)
+      _ = context.fill!()
     }
+    _ = context.restore!()
+  }
 
-    // Render ghost
+  private func renderGhost(width: Double, height: Double) {
     let ghost = simulation.state.ghost.position
     document.documentElement.object?.dataset.object?.ghostX = .string(String(ghost.x))
     document.documentElement.object?.dataset.object?.ghostY = .string(String(ghost.y))
-    let x = ghost.x * width
-    let y = ghost.y * height
-    let radius = min(width, height) * 0.048
+    let gx = ghost.x * width
+    let gy = ghost.y * height
+    let gRadius = min(width, height) * 0.08
+    _ = context.save!()
+    context.fillStyle = .string("rgba(135, 230, 255, 0.20)")
+    _ = context.beginPath!()
+    _ = context.arc!(gx, gy, gRadius * 1.25, 0, Double.pi * 2)
+    _ = context.fill!()
     if let image = document.getElementById("ghost-sprite").object,
       image.complete.boolean == true
     {
-      _ = context.drawImage!(image, x - radius, y - radius, radius * 2, radius * 2)
+      _ = context.drawImage!(image, gx - gRadius, gy - gRadius, gRadius * 2, gRadius * 2)
     }
-
-    if hasShake {
-      _ = context.restore!()
-    }
+    _ = context.restore!()
   }
 
   private func updateHUD() {
     let session = simulation.state.session
     document.getElementById("score").object?.innerText = .string("SCORE  \(session.score)")
-    document.getElementById("lives").object?.innerText = .string("LIVES  \(session.lives)")
+    let strikes =
+      session.lives >= 3
+      ? "✕ ✕ ✕" : (session.lives == 2 ? "✕ ✕" : (session.lives == 1 ? "✕" : "0"))
+    document.getElementById("lives").object?.innerText = .string(
+      "LIVES  \(session.lives) [\(strikes)]")
     document.getElementById("charges").object?.innerText = .string(
       "DASH  \(session.slices)  ·  SHRIEK  \(session.booms)"
     )

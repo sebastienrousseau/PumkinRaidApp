@@ -26,16 +26,16 @@ struct GameplayArtworkMetrics: Equatable {
 
   init(sceneSize: CGSize) {
     scale = min(
-      2.65,
-      max(0.95, min(sceneSize.width / 390, sceneSize.height / 600) * 1.12)
+      2.45,
+      max(1.15, min(sceneSize.width / 390, sceneSize.height / 600) * 1.15)
     )
   }
 
-  var ghostSize: CGSize { CGSize(width: 72 * scale, height: 76 * scale) }
-  var sweetSize: CGSize { CGSize(width: 50 * scale, height: 50 * scale) }
+  var ghostSize: CGSize { CGSize(width: 80 * scale, height: 85 * scale) }
+  var sweetSize: CGSize { CGSize(width: 58 * scale, height: 58 * scale) }
 
   func pumpkinSize(radiusScale: CGFloat) -> CGSize {
-    CGSize(width: 71 * radiusScale * scale, height: 61 * radiusScale * scale)
+    CGSize(width: 88 * radiusScale * scale, height: 76 * radiusScale * scale)
   }
 }
 
@@ -54,11 +54,11 @@ final class GameScene: SKScene {
   private let effectsLayer = SKNode()
   private let atmosphere = SKShapeNode()
   private let phantom = SKSpriteNode(texture: AssetLoader.texture("phantom"))
-  private let scoreLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-  private let livesLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-  private let slicesLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-  private let boomsLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
-  private let statusLabel = SKLabelNode(fontNamed: "AvenirNext-DemiBold")
+  private let scoreLabel = SKLabelNode(fontNamed: "GangofThree")
+  private let livesLabel = SKLabelNode(fontNamed: "GangofThree")
+  private let slicesLabel = SKLabelNode(fontNamed: "GangofThree")
+  private let boomsLabel = SKLabelNode(fontNamed: "GangofThree")
+  private let statusLabel = SKLabelNode(fontNamed: "GangofThree")
   private let hudBackground = SKShapeNode()
   private var pumpkinNodes: [Int: SKSpriteNode] = [:]
   private var pickupNode: SKSpriteNode?
@@ -524,7 +524,7 @@ final class GameScene: SKScene {
   }
 
   private func showCallout(_ text: String, at position: CGPoint, color: SKColor) {
-    let label = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+    let label = SKLabelNode(fontNamed: "GangofThree")
     label.text = text
     label.fontSize = min(28, max(18, size.width * 0.05))
     label.fontColor = color
@@ -588,7 +588,7 @@ final class GameScene: SKScene {
     guard !shouldReduceMotion else { return }
     for index in 0..<2 {
       let fragment = SKSpriteNode(texture: AssetLoader.texture("pumpkin_piece\(index + 1)"))
-      fragment.size = CGSize(width: 44 * spriteScale, height: 58 * spriteScale)
+      fragment.size = CGSize(width: 66 * spriteScale, height: 88 * spriteScale)
       fragment.position = point
       fragment.zPosition = 18
       addTransientEffect(fragment)
@@ -615,7 +615,7 @@ final class GameScene: SKScene {
     // Spawn 5 flying pumpkin seeds
     for index in 0..<5 {
       let seed = SKSpriteNode(texture: AssetLoader.texture("pumpkin_seed"))
-      seed.size = CGSize(width: 9 * spriteScale, height: 14 * spriteScale)
+      seed.size = CGSize(width: 15 * spriteScale, height: 23 * spriteScale)
       seed.position = point
       seed.zPosition = 17
       addTransientEffect(seed)
@@ -638,7 +638,7 @@ final class GameScene: SKScene {
 
   private func juiceSplatter(at point: CGPoint, identity: Int) {
     guard !shouldReduceMotion else { return }
-    let radius = CGFloat(24 + (identity % 16)) * spriteScale
+    let radius = CGFloat(36 + (identity % 22)) * spriteScale
     let splat = SKShapeNode(circleOfRadius: radius)
     splat.fillColor = SKColor(red: 1.0, green: 0.48, blue: 0.04, alpha: 0.42)
     splat.strokeColor = .clear

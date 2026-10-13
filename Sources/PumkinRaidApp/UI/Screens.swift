@@ -789,7 +789,7 @@ struct GameOverView: View {
     VStack(spacing: 0) {
       VStack(spacing: 5) {
         Text("\(summary.score)")
-          .font(.custom("GapstownAHBold", size: 48, relativeTo: .largeTitle))
+          .font(.custom("Gang of Three", size: 52, relativeTo: .largeTitle))
           .foregroundStyle(.white)
           .monospacedDigit()
         HStack(spacing: 10) {

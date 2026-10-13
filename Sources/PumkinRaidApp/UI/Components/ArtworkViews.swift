@@ -35,13 +35,13 @@ enum RaidTheme {
 }
 
 enum RaidTypography {
-  static let screenTitle = Font.custom("Creepsville", size: 48, relativeTo: .largeTitle)
-  static let sectionTitle = Font.custom("GapstownAHBold", size: 28, relativeTo: .title2)
-  static let cardTitle = Font.custom("GapstownAHBold", size: 27, relativeTo: .title2)
+  static let screenTitle = Font.custom("Gang of Three", size: 52, relativeTo: .largeTitle)
+  static let sectionTitle = Font.custom("Gang of Three", size: 30, relativeTo: .title2)
+  static let cardTitle = Font.custom("Gang of Three", size: 28, relativeTo: .title2)
   static let body = Font.system(size: 20, weight: .medium, design: .rounded)
   static let support = Font.system(size: 18, weight: .semibold, design: .rounded)
   static let caption = Font.system(size: 16, weight: .semibold, design: .rounded)
-  static let action = Font.custom("GapstownAHBold", size: 25, relativeTo: .title3)
+  static let action = Font.custom("Gang of Three", size: 26, relativeTo: .title3)
 }
 
 enum RaidMetrics {
@@ -117,23 +117,28 @@ struct RaidTitle: View {
   let fontSize: CGFloat
 
   var body: some View {
-    VStack(spacing: fontSize < 60 ? -8 : -12) {
-      Text("PUMKIN")
+    VStack(spacing: fontSize < 60 ? -8 : -14) {
+      Text("PUMPKIN")
       Text("RAID")
     }
-    .font(.custom("Creepsville", size: fontSize, relativeTo: .largeTitle))
-    .tracking(0.5)
+    .font(.custom("Gang of Three", size: fontSize, relativeTo: .largeTitle))
+    .tracking(1.5)
     .foregroundStyle(
       LinearGradient(
-        colors: [RaidTheme.amber, RaidTheme.orange],
+        colors: [
+          Color(red: 1.0, green: 0.96, blue: 0.72),
+          RaidTheme.amber,
+          RaidTheme.orange,
+          Color(red: 0.88, green: 0.18, blue: 0.02),
+        ],
         startPoint: .top,
         endPoint: .bottom
       )
     )
-    .shadow(color: .black.opacity(0.85), radius: 2, y: 3)
-    .shadow(color: RaidTheme.orange.opacity(0.42), radius: 18)
+    .shadow(color: .black.opacity(0.9), radius: 3, y: 4)
+    .shadow(color: RaidTheme.orange.opacity(0.55), radius: 24)
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("Pumkin Raid")
+    .accessibilityLabel("Pumpkin Raid")
   }
 }
 
@@ -231,7 +236,7 @@ struct RaidArtworkIconLabel: View {
         .scaledToFit()
         .frame(width: size, height: size)
       Text(title)
-        .font(.custom("GapstownAHBold", size: 19, relativeTo: .headline))
+        .font(.custom("Gang of Three", size: 20, relativeTo: .headline))
         .foregroundStyle(.white)
         .lineLimit(1)
         .minimumScaleFactor(0.8)
