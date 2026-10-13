@@ -68,6 +68,25 @@ final class WebLeaderboard {
     return (entries, isNewBest, currentID)
   }
 
+  func currentGlobalBest() -> Int {
+    guard let storage = JSObject.global.localStorage.object else { return 0 }
+    return GameMode.allCases.compactMap {
+      Int(storage.getItem?("pumkinRaid.best.\($0.rawValue)").string ?? "0")
+    }.max() ?? 0
+  }
+
+  func saveBestScore(_ score: Int, mode: GameMode, document: JSValue) {
+    guard let storage = JSObject.global.localStorage.object else { return }
+    let key = "pumkinRaid.best.\(mode.rawValue)"
+    let previous = Int(storage.getItem?(key).string ?? "0") ?? 0
+    _ = storage.setItem?(key, String(max(score, previous)))
+    updateBestScore(document: document)
+  }
+
+  func updateBestScore(document: JSValue) {
+    document.getElementById("best").object?.innerText = .string(String(currentGlobalBest()))
+  }
+
   private func saveEntries(_ entries: [WebLeaderboardEntry], for mode: GameMode) {
     guard let storage = JSObject.global.localStorage.object,
       let data = try? JSONEncoder().encode(entries),
@@ -200,5 +219,32 @@ final class WebLeaderboard {
       closures.append(closure)
     }
     return closures
+  }
+}
+
+extension GameMode {
+  var displayTitle: String {
+    switch self {
+    case .classicRaid: "CLASSIC RAID"
+    case .moonRush: "MOON RUSH"
+    case .spiritZen: "SPIRIT ZEN"
+    case .dailyHaunt: "DAILY HAUNT"
+    case .bossRaid: "BOSS RAID"
+    }
+  }
+
+  var webAtmosphereTint: String {
+    switch self {
+    case .classicRaid: "rgba(0,0,0,0)"
+    case .moonRush: "rgba(255,86,10,.07)"
+    case .spiritZen: "rgba(40,190,240,.07)"
+    case .dailyHaunt: "rgba(130,40,220,.09)"
+    case .bossRaid: "rgba(190,0,0,.12)"
+    }
+  }
+
+  static func dailySeed() -> UInt64 {
+    let days = Int(Date.now.timeIntervalSince1970 / 86_400)
+    return UInt64(max(0, days)) ^ 0x4441_494C_595F_5241
   }
 }

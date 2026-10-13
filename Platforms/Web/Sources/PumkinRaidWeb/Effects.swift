@@ -65,6 +65,8 @@ struct BladePoint {
 
 /// Authoritative manager of visual effects for the WebAssembly canvas.
 final class VisualEffectsManager {
+  var sliceImages: [JSObject?] = []
+  var seedImage: JSObject?
   private(set) var slices: [PumpkinSlice] = []
   private(set) var seeds: [PumpkinSeedParticle] = []
   private(set) var particles: [JuiceParticle] = []
@@ -75,12 +77,12 @@ final class VisualEffectsManager {
 
   func addBladePoint(x: Double, y: Double) {
     bladePoints.append(BladePoint(x: x, y: y, age: 0))
-    if bladePoints.count > 24 { bladePoints.removeFirst() }
+    if bladePoints.count > 16 { bladePoints.removeFirst() }
   }
 
   func addBladeSegment(fromX: Double, fromY: Double, toX: Double, toY: Double) {
-    for step in 0...4 {
-      let fraction = Double(step) / 4.0
+    for step in 0...3 {
+      let fraction = Double(step) / 3.0
       bladePoints.append(
         BladePoint(
           x: fromX + (toX - fromX) * fraction,
@@ -88,6 +90,7 @@ final class VisualEffectsManager {
           age: 0
         ))
     }
+    if bladePoints.count > 16 { bladePoints.removeFirst(bladePoints.count - 16) }
   }
 
   func spawnSlice(atX x: Double, y: Double, size: Double, identity: Int) {
@@ -108,10 +111,11 @@ final class VisualEffectsManager {
         )
       )
     }
+    if slices.count > 10 { slices.removeFirst(slices.count - 10) }
 
-    // Spawn 6 flying pumpkin seeds bursting out
-    for i in 0..<6 {
-      let angle = Double(i) * (.pi * 2.0 / 6.0) + Double(identity % 17) * 0.1
+    // Spawn 4 flying pumpkin seeds bursting out
+    for i in 0..<4 {
+      let angle = Double(i) * (.pi * 2.0 / 4.0) + Double(identity % 17) * 0.1
       let speed = 120.0 + Double((identity * 19 + i * 29) % 120)
       seeds.append(
         PumpkinSeedParticle(
@@ -121,35 +125,37 @@ final class VisualEffectsManager {
           vy: sin(angle) * speed - 60.0,
           angle: Double(i),
           vAngle: (i % 2 == 0 ? 1.0 : -1.0) * (6.0 + Double(i)),
-          size: 24.0,
+          size: 22.0,
           alpha: 1.0
         )
       )
     }
+    if seeds.count > 16 { seeds.removeFirst(seeds.count - 16) }
 
-    // Spawn 20 juice droplets
+    // Spawn 8 juice droplets
     let colors = ["#ff7a00", "#ffa726", "#ff5722", "#ffd54f"]
-    for i in 0..<20 {
-      let angle = Double(i) * (.pi * 2.0 / 20.0) + Double(identity % 20) * 0.05
-      let speed = 90.0 + Double((identity * 17 + i * 23) % 140)
+    for i in 0..<8 {
+      let angle = Double(i) * (.pi * 2.0 / 8.0) + Double(identity % 20) * 0.05
+      let speed = 90.0 + Double((identity * 17 + i * 23) % 120)
       particles.append(
         JuiceParticle(
           x: x,
           y: y,
           vx: cos(angle) * speed,
           vy: sin(angle) * speed - 40.0,
-          radius: 3.5 + Double(i % 5),
+          radius: 4.0 + Double(i % 4),
           alpha: 1.0,
           color: colors[i % colors.count]
         )
       )
     }
+    if particles.count > 36 { particles.removeFirst(particles.count - 36) }
 
     // Lingering juice splat on backdrop
     splats.append(
-      JuiceSplat(x: x, y: y, radius: 28.0 + Double(identity % 18), alpha: 0.45)
+      JuiceSplat(x: x, y: y, radius: 26.0 + Double(identity % 16), alpha: 0.45)
     )
-    if splats.count > 18 { splats.removeFirst() }
+    if splats.count > 10 { splats.removeFirst(splats.count - 10) }
   }
 
   func spawnCallout(text: String, atX x: Double, y: Double, color: String = "#ff9a3c") {
@@ -226,10 +232,10 @@ final class VisualEffectsManager {
     }
   }
 
-  func render(context: JSObject, width: Double, height: Double, document: JSValue) {
+  func render(context: JSObject, width: Double, height: Double) {
     renderSplats(context: context)
-    renderSlices(context: context, document: document)
-    renderSeeds(context: context, document: document)
+    renderSlices(context: context)
+    renderSeeds(context: context)
     renderParticles(context: context)
     renderBladeTrail(context: context)
     renderCallouts(context: context, width: width)
@@ -237,10 +243,9 @@ final class VisualEffectsManager {
 
   private func renderSplats(context: JSObject) {
     for splat in splats {
-      context.fillStyle = .string("rgba(235, 110, 0, \(splat.alpha * 0.5))")
+      context.fillStyle = .string("rgba(235, 110, 0, \(splat.alpha * 0.42))")
       _ = context.beginPath!()
       _ = context.arc!(splat.x, splat.y, splat.radius, 0, Double.pi * 2)
-      _ = context.fill!()
       let satDist = splat.radius * 1.35
       let satRadius = splat.radius * 0.32
       let satellites: [(Double, Double)] = [
@@ -250,19 +255,19 @@ final class VisualEffectsManager {
         (-satDist * 0.7, satDist * 0.7),
       ]
       for (dx, dy) in satellites {
-        _ = context.beginPath!()
+        _ = context.moveTo!(splat.x + dx + satRadius, splat.y + dy)
         _ = context.arc!(splat.x + dx, splat.y + dy, satRadius, 0, Double.pi * 2)
-        _ = context.fill!()
       }
+      _ = context.fill!()
     }
   }
 
-  private func renderSlices(context: JSObject, document: JSValue) {
+  private func renderSlices(context: JSObject) {
     for slice in slices {
-      let id = "pumpkin-piece-\(slice.pieceIndex)"
-      guard let img = document.getElementById(id).object, img.complete.boolean == true else {
-        continue
-      }
+      let idx = slice.pieceIndex - 1
+      guard idx >= 0, idx < sliceImages.count,
+        let img = sliceImages[idx], img.complete.boolean == true
+      else { continue }
       _ = context.save!()
       _ = context.translate!(slice.x, slice.y)
       _ = context.rotate!(slice.angle)
@@ -274,12 +279,8 @@ final class VisualEffectsManager {
     }
   }
 
-  private func renderSeeds(context: JSObject, document: JSValue) {
-    guard let seedImg = document.getElementById("pumpkin-seed").object,
-      seedImg.complete.boolean == true
-    else {
-      return
-    }
+  private func renderSeeds(context: JSObject) {
+    guard let seedImg = seedImage, seedImg.complete.boolean == true else { return }
     for seed in seeds {
       _ = context.save!()
       _ = context.translate!(seed.x, seed.y)
@@ -293,14 +294,16 @@ final class VisualEffectsManager {
   }
 
   private func renderParticles(context: JSObject) {
+    guard !particles.isEmpty else { return }
+    _ = context.save!()
+    context.fillStyle = .string("#ffa726")
     for p in particles {
-      context.fillStyle = .string(p.color)
       context.globalAlpha = .number(p.alpha)
       _ = context.beginPath!()
       _ = context.arc!(p.x, p.y, p.radius, 0, Double.pi * 2)
       _ = context.fill!()
     }
-    context.globalAlpha = .number(1.0)
+    _ = context.restore!()
   }
 
   private func renderBladeTrail(context: JSObject) {

@@ -240,6 +240,22 @@ button:focus-visible {
   transform: translateY(-2px) scale(1.025);
 }
 
+.menu-actions {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+#scores-btn {
+  width: 100%;
+  min-height: 48px;
+  background: linear-gradient(180deg, #422514 0%, #2b1408 100%);
+  border: 2px solid #ff9a3c;
+  color: #ffd54f;
+  font-size: 1.15rem;
+  letter-spacing: .08em;
+}
+
 .best {
   margin: 6px 0 0;
   padding: 6px 18px;
