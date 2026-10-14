@@ -252,4 +252,11 @@ final class AppModelTests: XCTestCase {
     XCTAssertEqual(store.historicalRuns.first?.score, 110)
     XCTAssertEqual(store.historicalRuns.last?.score, 600)
   }
+
+  func testLeaderboardStoreDecodesWithMissingFields() throws {
+    let emptyJson = "{}".data(using: .utf8)!
+    let decoded = try JSONDecoder().decode(LocalLeaderboardStore.self, from: emptyJson)
+    XCTAssertTrue(decoded.historicalRuns.isEmpty)
+    XCTAssertEqual(decoded.leaderboard(for: .classicRaid).entries, [])
+  }
 }

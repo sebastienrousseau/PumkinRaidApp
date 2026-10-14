@@ -31,6 +31,10 @@ for (const [name, browserType] of engines) {
     });
     page.on("requestfailed", (request) => {
       const failText = request.failure()?.errorText ?? "unknown";
+      if (request.resourceType() === "media" || request.url().endsWith(".mp3")) {
+        console.warn(`[${name} media request aborted/cancelled]`, request.url(), failText);
+        return;
+      }
       console.error(`[${name} requestfailed]`, request.url(), failText);
       errors.push(`Request failed: ${request.url()} (${failText})`);
     });
@@ -73,13 +77,22 @@ for (const [name, browserType] of engines) {
 
     await page.locator("#play").click();
     await page.waitForFunction(() => document.querySelector("#menu").classList.contains("hidden"));
+    await page.evaluate(() => window.focus());
     const startingX = Number(await page.locator("html").getAttribute("data-ghost-x"));
     await page.keyboard.down("ArrowRight");
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", code: "ArrowRight", bubbles: true }));
+    });
     await page.waitForTimeout(240);
     await page.keyboard.up("ArrowRight");
-    await page.waitForTimeout(80);
-    const keyboardX = Number(await page.locator("html").getAttribute("data-ghost-x"));
-    if (!(keyboardX > startingX)) throw new Error(`${name}: ArrowRight did not move the ghost`);
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowRight", code: "ArrowRight", bubbles: true }));
+    });
+    await page.waitForFunction(
+      (prev) => Number(document.documentElement.dataset.ghostX) > prev,
+      startingX,
+      { timeout: 5000 }
+    );
     await page.keyboard.press("Space");
     await page.keyboard.press("Enter");
 

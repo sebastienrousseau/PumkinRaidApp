@@ -10,7 +10,7 @@ TEST_BINARY="$BIN_PATH/PumkinRaidAppPackageTests.xctest/Contents/MacOS/PumkinRai
 # Unit coverage intentionally measures deterministic application services. SwiftUI
 # view builders and OS-owned SpriteKit, Game Center, audio, input, and lifecycle
 # adapters are exercised by the platform build and browser/integration matrix.
-IGNORE='(Tests|\.build|GameEngineLib|AudioManager\.swift|GameCenterService\.swift|GameScene\.swift|GameSceneView\.swift|KeyboardState\.swift|MacAppDelegate\.swift|PerformanceMonitor\.swift|PumkinRaidApp\.swift|RootView\.swift|UI/)'
+IGNORE='(Tests|\.build|GameEngineLib|AudioManager\.swift|GameCenterService\.swift|GameInputAdapter\.swift|GameNodeRenderer\.swift|GameScene\.swift|GameSceneView\.swift|GameVFXCoordinator\.swift|KeyboardState\.swift|MacAppDelegate\.swift|PerformanceMonitor\.swift|PumkinRaidApp\.swift|RootView\.swift|UI/)'
 REPORT="$(
   xcrun llvm-cov report "$TEST_BINARY" \
     -instr-profile="$PROFILE" \
