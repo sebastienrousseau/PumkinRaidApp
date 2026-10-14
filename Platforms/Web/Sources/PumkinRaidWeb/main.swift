@@ -123,6 +123,9 @@ private final class BrowserGame {
       onReplay: { [weak self] in
         guard let self else { return }
         self.start(mode: self.currentMode)
+      },
+      onSelectMode: { [weak self] mode in
+        self?.currentMode = mode
       }
     )
     leaderboard.updateBestScore(document: document)

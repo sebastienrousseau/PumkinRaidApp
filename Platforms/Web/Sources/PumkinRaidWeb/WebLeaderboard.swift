@@ -168,6 +168,17 @@ final class WebLeaderboard {
     if let title = document.getElementById("gameover-title").object {
       title.innerHTML = .string("GAME<br><span>OVER</span>")
     }
+    if let eyebrow = document.getElementById("results-eyebrow").object {
+      eyebrow.innerText = .string("★ DOJO RESULTS ★")
+    }
+    _ = document.getElementById("score-plaque").object?.classList.remove("hidden")
+    _ = document.getElementById("mode-tabs").object?.classList.add("hidden")
+    if let replayBtn = document.getElementById("replay-btn").object {
+      replayBtn.innerHTML = .string("<span class=\"btn-icon\">⚔</span> SLICE TO REPLAY")
+    }
+    if let menuBtn = document.getElementById("menu-btn").object {
+      menuBtn.innerHTML = .string("<span class=\"btn-icon\">🏠</span> MAIN MENU")
+    }
 
     let top = max(bestScore, result.entries.first?.score ?? 0)
     render(document: document, entries: result.entries, currentID: result.currentID, bestScore: top)
@@ -181,10 +192,19 @@ final class WebLeaderboard {
     if let title = document.getElementById("gameover-title").object {
       title.innerHTML = .string("HIGH<br><span>SCORES</span>")
     }
+    if let eyebrow = document.getElementById("results-eyebrow").object {
+      eyebrow.innerText = .string("★ HALL OF FAME ★")
+    }
     _ = document.getElementById("new-high-badge").object?.classList.add("hidden")
-    document.getElementById("final-score").object?.innerText = .string("\(bestScore)")
-    document.getElementById("stat-smashed").object?.innerText = .string("-")
-    document.getElementById("stat-combo").object?.innerText = .string("-")
+    _ = document.getElementById("score-plaque").object?.classList.add("hidden")
+    _ = document.getElementById("mode-tabs").object?.classList.remove("hidden")
+    updateTabSelection(document: document, activeMode: mode)
+    if let replayBtn = document.getElementById("replay-btn").object {
+      replayBtn.innerHTML = .string("<span class=\"btn-icon\">⚔</span> SLICE TO PLAY")
+    }
+    if let menuBtn = document.getElementById("menu-btn").object {
+      menuBtn.innerHTML = .string("<span class=\"btn-icon\">🏠</span> MAIN MENU")
+    }
 
     render(document: document, entries: entries, currentID: nil, bestScore: bestScore)
 
@@ -192,10 +212,29 @@ final class WebLeaderboard {
     _ = document.getElementById("gameover").object?.classList.remove("hidden")
   }
 
+  func updateTabSelection(document: JSValue, activeMode: GameMode) {
+    for m in GameMode.allCases {
+      guard let tab = document.getElementById("tab-\(m.rawValue)").object else { continue }
+      if m == activeMode {
+        _ = tab.classList.add("active")
+        _ = tab.setAttribute?("aria-selected", "true")
+      } else {
+        _ = tab.classList.remove("active")
+        _ = tab.setAttribute?("aria-selected", "false")
+      }
+    }
+  }
+
+  func currentBest(for mode: GameMode) -> Int {
+    guard let storage = JSObject.global.localStorage.object else { return 0 }
+    return Int(storage.getItem?("pumkinRaid.best.\(mode.rawValue)").string ?? "0") ?? 0
+  }
+
   func installButtons(
     document: JSValue,
     onShowScores: @escaping () -> Void,
-    onReplay: @escaping () -> Void
+    onReplay: @escaping () -> Void,
+    onSelectMode: @escaping (GameMode) -> Void
   ) -> [JSClosure] {
     var closures: [JSClosure] = []
     if let scoresBtn = document.getElementById("scores-btn").object {
@@ -221,6 +260,20 @@ final class WebLeaderboard {
         return .undefined
       }
       menuBtn.onclick = JSValue.object(closure)
+      closures.append(closure)
+    }
+    for m in GameMode.allCases {
+      guard let tab = document.getElementById("tab-\(m.rawValue)").object else { continue }
+      let closure = JSClosure { [weak self] _ in
+        guard let self else { return .undefined }
+        onSelectMode(m)
+        self.updateTabSelection(document: document, activeMode: m)
+        let entries = self.loadEntries(for: m)
+        let best = self.currentBest(for: m)
+        self.render(document: document, entries: entries, currentID: nil, bestScore: best)
+        return .undefined
+      }
+      tab.onclick = JSValue.object(closure)
       closures.append(closure)
     }
     return closures

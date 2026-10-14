@@ -26,14 +26,14 @@
         <h1>PUMPKIN<br><span>RAID</span></h1>
         <p class="menu-desc">Slice the pumpkins &bull; Dodge the cursed<br><span class="controls-hint">Touch, mouse swipe, WASD, or Space to dash</span></p>
         <div class="modes" aria-label="Choose game mode">
-          <button id="play" type="button">&#127875; SLICE TO PLAY</button>
-          <button id="moon" type="button">&#127769; MOON RUSH</button>
-          <button id="zen" type="button">&#127807; SPIRIT ZEN</button>
-          <button id="daily" type="button">&#128123; DAILY HAUNT</button>
-          <button id="boss" type="button">&#9876; BOSS RAID</button>
+          <button id="play" type="button"><span class="btn-icon">&#127875;</span> SLICE TO PLAY</button>
+          <button id="moon" type="button"><span class="btn-icon">&#127769;</span> MOON RUSH</button>
+          <button id="zen" type="button"><span class="btn-icon">&#127807;</span> SPIRIT ZEN</button>
+          <button id="daily" type="button"><span class="btn-icon">&#128123;</span> DAILY HAUNT</button>
+          <button id="boss" type="button"><span class="btn-icon">&#9876;</span> BOSS RAID</button>
         </div>
         <div class="menu-actions">
-          <button id="scores-btn" type="button">&#127942; HIGH SCORES</button>
+          <button id="scores-btn" type="button"><span class="btn-icon">&#127942;</span> HIGH SCORES</button>
         </div>
         <p class="best">&#9733; LOCAL RECORD <strong id="best">0</strong></p>
       </div>
@@ -44,9 +44,16 @@
         <span class="bolt bolt-tr"></span>
         <span class="bolt bolt-bl"></span>
         <span class="bolt bolt-br"></span>
-        <p class="eyebrow">&#9733; DOJO RESULTS &#9733;</p>
+        <p id="results-eyebrow" class="eyebrow">&#9733; DOJO RESULTS &#9733;</p>
         <h1 id="gameover-title">GAME<br><span>OVER</span></h1>
-        <div class="score-plaque">
+        <div id="mode-tabs" class="mode-tabs hidden" role="tablist" aria-label="Game mode high scores">
+          <button id="tab-classicRaid" type="button" class="tab-btn active" role="tab" aria-selected="true">CLASSIC</button>
+          <button id="tab-moonRush" type="button" class="tab-btn" role="tab" aria-selected="false">MOON</button>
+          <button id="tab-spiritZen" type="button" class="tab-btn" role="tab" aria-selected="false">ZEN</button>
+          <button id="tab-dailyHaunt" type="button" class="tab-btn" role="tab" aria-selected="false">DAILY</button>
+          <button id="tab-bossRaid" type="button" class="tab-btn" role="tab" aria-selected="false">BOSS</button>
+        </div>
+        <div id="score-plaque" class="score-plaque">
           <span class="score-label">FINAL SCORE</span>
           <span id="final-score" class="score-display">0</span>
           <div id="new-high-badge" class="high-badge hidden">&#9733; NEW HIGH SCORE! &#9733;</div>
@@ -58,15 +65,15 @@
         </div>
         <div class="leaderboard-container">
           <div class="leaderboard-header">
-            <span class="trophy-title">&#127942; TOP NINJAS</span>
+            <span class="trophy-title"><span class="btn-icon">&#127942;</span> TOP NINJAS</span>
             <span class="record-tag">BEST <strong id="top-record">0</strong></span>
           </div>
           <div id="leaderboard-rows" class="leaderboard-rows" role="table" aria-label="High scores list">
           </div>
         </div>
         <div class="gameover-actions">
-          <button id="replay-btn" type="button" class="btn-primary">&#127875; SLICE TO REPLAY</button>
-          <button id="menu-btn" type="button" class="btn-secondary">&#127968; MAIN MENU</button>
+          <button id="replay-btn" type="button" class="btn-primary"><span class="btn-icon">&#9876;</span> SLICE TO REPLAY</button>
+          <button id="menu-btn" type="button" class="btn-secondary"><span class="btn-icon">&#127968;</span> MAIN MENU</button>
         </div>
       </div>
     </section>
