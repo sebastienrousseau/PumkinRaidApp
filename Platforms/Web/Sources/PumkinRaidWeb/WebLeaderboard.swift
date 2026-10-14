@@ -57,7 +57,7 @@ final class WebLeaderboard {
     if score > 0 {
       let newEntry = WebLeaderboardEntry(
         id: currentID,
-        name: "You (Ninja)",
+        name: "Ninja",
         score: score,
         smashed: smashed,
         combo: combo

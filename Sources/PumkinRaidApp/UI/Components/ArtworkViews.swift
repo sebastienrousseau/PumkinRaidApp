@@ -36,12 +36,12 @@ enum RaidTheme {
 
 enum RaidTypography {
   static let screenTitle = Font.custom("Gang of Three", size: 52, relativeTo: .largeTitle)
-  static let sectionTitle = Font.custom("Gang of Three", size: 30, relativeTo: .title2)
-  static let cardTitle = Font.custom("Gang of Three", size: 28, relativeTo: .title2)
+  static let sectionTitle = Font.system(size: 28, weight: .heavy, design: .rounded)
+  static let cardTitle = Font.system(size: 24, weight: .bold, design: .rounded)
   static let body = Font.system(size: 20, weight: .medium, design: .rounded)
   static let support = Font.system(size: 18, weight: .semibold, design: .rounded)
   static let caption = Font.system(size: 16, weight: .semibold, design: .rounded)
-  static let action = Font.custom("Gang of Three", size: 26, relativeTo: .title3)
+  static let action = Font.system(size: 24, weight: .heavy, design: .rounded)
 }
 
 enum RaidMetrics {

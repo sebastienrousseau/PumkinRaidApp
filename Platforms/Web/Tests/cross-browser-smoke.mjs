@@ -78,21 +78,21 @@ for (const [name, browserType] of engines) {
     await page.locator("#play").click();
     await page.waitForFunction(() => document.querySelector("#menu").classList.contains("hidden"));
     await page.evaluate(() => window.focus());
+    await page.locator("#game").focus();
     const startingX = Number(await page.locator("html").getAttribute("data-ghost-x"));
     await page.keyboard.down("ArrowRight");
     await page.evaluate(() => {
       window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", code: "ArrowRight", bubbles: true }));
     });
-    await page.waitForTimeout(240);
+    await page.waitForFunction(
+      (prev) => Number(document.documentElement.dataset.ghostX) > prev,
+      startingX,
+      { timeout: 10_000 }
+    );
     await page.keyboard.up("ArrowRight");
     await page.evaluate(() => {
       window.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowRight", code: "ArrowRight", bubbles: true }));
     });
-    await page.waitForFunction(
-      (prev) => Number(document.documentElement.dataset.ghostX) > prev,
-      startingX,
-      { timeout: 5000 }
-    );
     await page.keyboard.press("Space");
     await page.keyboard.press("Enter");
 

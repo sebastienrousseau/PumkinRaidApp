@@ -78,7 +78,7 @@ struct GameOverView: View {
     VStack(spacing: 0) {
       VStack(spacing: 6) {
         Text("\(summary.score)")
-          .font(.custom("Gang of Three", size: 64, relativeTo: .largeTitle))
+          .font(.system(size: 64, weight: .black, design: .rounded))
           .foregroundStyle(
             LinearGradient(
               colors: [
@@ -101,12 +101,12 @@ struct GameOverView: View {
           "+\(progression.experienceAwarded) XP  •  +\(progression.ectoplasmAwarded) ectoplasm"
         )
         .font(RaidTypography.support)
-        .foregroundStyle(.cyan)
+        .foregroundStyle(Color(red: 1.0, green: 0.88, blue: 0.55))
         .lineLimit(1)
         .minimumScaleFactor(0.75)
         if progression.isNewBest {
           Text("★ NEW HIGH SCORE! ★")
-            .font(.custom("Gang of Three", size: 16))
+            .font(.system(size: 15, weight: .black, design: .rounded))
             .foregroundStyle(.yellow)
             .padding(.horizontal, 14)
             .padding(.vertical, 4)
@@ -266,7 +266,7 @@ struct GameOverView: View {
       }
       Spacer()
       Text("\(entry.score)")
-        .font(.custom("Gang of Three", size: 24, relativeTo: .title3))
+        .font(.system(size: 22, weight: .heavy, design: .rounded))
         .foregroundStyle(Color.yellow)
         .monospacedDigit()
     }

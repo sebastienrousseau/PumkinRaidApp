@@ -9,8 +9,8 @@
 </head>
 <body>
   <main class="shell" aria-label="Pumkin Raid game">
-    <canvas id="game" role="application" aria-label="Pumkin Raid play field. Move with arrow keys or WASD, or drag the ghost. Space dashes and Return shrieks."></canvas>
-    <header class="hud" aria-live="polite">
+    <canvas id="game" role="application" tabindex="0" aria-label="Pumkin Raid play field. Move with arrow keys or WASD, or drag the ghost. Space dashes and Return shrieks."></canvas>
+    <header id="hud" class="hud" aria-live="polite">
       <span id="score">SCORE&nbsp;&nbsp;0</span>
       <span id="mode">CLASSIC RAID</span>
       <span id="lives">LIVES&nbsp;&nbsp;10</span>
@@ -24,7 +24,7 @@
         <span class="bolt bolt-br"></span>
         <p class="eyebrow">&#9733; ULTIMATE SWORD ARCADE &#9733;</p>
         <h1>PUMPKIN<br><span>RAID</span></h1>
-        <p>Slice the pumpkins. Dodge the cursed.<br>Touch, mouse swipe, WASD, or Space to dash.</p>
+        <p class="menu-desc">Slice the pumpkins &bull; Dodge the cursed<br><span class="controls-hint">Touch, mouse swipe, WASD, or Space to dash</span></p>
         <div class="modes" aria-label="Choose game mode">
           <button id="play" type="button">&#127875; SLICE TO PLAY</button>
           <button id="moon" type="button">&#127769; MOON RUSH</button>
