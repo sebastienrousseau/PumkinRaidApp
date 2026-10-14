@@ -7,6 +7,12 @@ PUMKIN_SWIFT="${PUMKIN_SWIFT:-swift}"
 
 OUTPUT=".build/plugins/PackageToJS/outputs/Package"
 node Scripts/ensure-wasi-shim.mjs "$OUTPUT"
+
+if command -v wasm-opt >/dev/null 2>&1; then
+  echo "Optimizing WebAssembly binary with wasm-opt (-Oz --strip-debug --strip-producers)..."
+  wasm-opt -Oz --strip-debug --strip-producers "$OUTPUT/PumkinRaidWeb.wasm" -o "$OUTPUT/PumkinRaidWeb.wasm"
+fi
+
 npm install --no-audit --no-fund
 npx vite build Web --outDir ../dist --base ./ --emptyOutDir
 

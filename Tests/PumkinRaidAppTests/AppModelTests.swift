@@ -239,4 +239,24 @@ final class AppModelTests: XCTestCase {
     let restored = makeModel(defaults: defaults)
     XCTAssertEqual(restored.dailyChallenge, model.dailyChallenge)
   }
+
+  func testHistoricalRunsCircularBufferCeiling() {
+    var store = LocalLeaderboardStore()
+    for index in 1...60 {
+      store.submit(
+        LeaderboardEntry(playerName: "Player \(index)", score: index * 10),
+        mode: .classicRaid
+      )
+    }
+    XCTAssertEqual(store.historicalRuns.count, 50)
+    XCTAssertEqual(store.historicalRuns.first?.score, 110)
+    XCTAssertEqual(store.historicalRuns.last?.score, 600)
+  }
+
+  func testLeaderboardStoreDecodesWithMissingFields() throws {
+    let emptyJson = "{}".data(using: .utf8)!
+    let decoded = try JSONDecoder().decode(LocalLeaderboardStore.self, from: emptyJson)
+    XCTAssertTrue(decoded.historicalRuns.isEmpty)
+    XCTAssertEqual(decoded.leaderboard(for: .classicRaid).entries, [])
+  }
 }

@@ -9,7 +9,7 @@ enum RaidFontRegistrar {
     guard !didRegister else { return }
     didRegister = true
 
-    for name in ["GapstownAHBold", "Creepsville"] {
+    for name in ["GangOfThree", "GapstownAHBold", "Creepsville"] {
       guard
         let url = Bundle.pumkinRaidResources.url(
           forResource: name,

@@ -9,32 +9,120 @@
 </head>
 <body>
   <main class="shell" aria-label="Pumkin Raid game">
-    <canvas id="game" role="application" aria-label="Pumkin Raid play field. Move with arrow keys or WASD, or drag the ghost. Space dashes and Return shrieks."></canvas>
-    <header class="hud" aria-live="polite">
+    <canvas id="game" role="application" tabindex="0" aria-label="Pumkin Raid play field. Move with arrow keys or WASD, or drag the ghost. Space dashes and Return shrieks."></canvas>
+    <header id="hud" class="hud" aria-live="polite">
       <span id="score">SCORE&nbsp;&nbsp;0</span>
       <span id="mode">CLASSIC RAID</span>
       <span id="lives">LIVES&nbsp;&nbsp;10</span>
       <span id="charges">DASH&nbsp;&nbsp;3 · SHRIEK&nbsp;&nbsp;3</span>
     </header>
     <section id="menu" class="menu">
-      <p class="eyebrow">A PURE SWIFT ARCADE GAME</p>
-      <h1>PUMKIN<br><span>RAID</span></h1>
-      <p>Guide the ghost. Dash through the raid.<br>Use arrows, WASD, touch, mouse, Space and Enter.</p>
-      <div class="modes" aria-label="Choose game mode">
-        <button id="play" type="button">CLASSIC RAID</button>
-        <button id="moon" type="button">MOON RUSH</button>
-        <button id="zen" type="button">SPIRIT ZEN</button>
-        <button id="daily" type="button">DAILY HAUNT</button>
-        <button id="boss" type="button">BOSS RAID</button>
+      <div class="dojo-board">
+        <span class="bolt bolt-tl"></span>
+        <span class="bolt bolt-tr"></span>
+        <span class="bolt bolt-bl"></span>
+        <span class="bolt bolt-br"></span>
+        <p class="eyebrow">&#9733; ULTIMATE SWORD ARCADE &#9733;</p>
+        <h1>PUMPKIN<br><span>RAID</span></h1>
+        <p class="menu-desc">Slice the pumpkins &bull; Dodge the cursed<br><span class="controls-hint">Touch, mouse swipe, WASD, or Space to dash</span></p>
+        <button id="play" type="button" class="btn-primary play-btn"><span class="btn-icon">&#127875;</span> <span id="play-btn-text">TAP TO PLAY CLASSIC</span></button>
+        <div class="modes modes-grid" role="group" aria-label="Choose game mode">
+          <button id="classic" type="button" class="mode-card active" aria-pressed="true">
+            <span class="btn-icon">&#127875;</span>
+            <div class="mode-info">
+              <span class="mode-name">CLASSIC RAID</span>
+              <span class="mode-tag">3 LIVES &bull; SURVIVE</span>
+            </div>
+          </button>
+          <button id="moon" type="button" class="mode-card" aria-pressed="false">
+            <span class="btn-icon">&#127769;</span>
+            <div class="mode-info">
+              <span class="mode-name">MOON RUSH</span>
+              <span class="mode-tag">60s &bull; 2x FRENZY</span>
+            </div>
+          </button>
+          <button id="zen" type="button" class="mode-card" aria-pressed="false">
+            <span class="btn-icon">&#127807;</span>
+            <div class="mode-info">
+              <span class="mode-name">SPIRIT ZEN</span>
+              <span class="mode-tag">90s &bull; NO BOMBS</span>
+            </div>
+          </button>
+          <button id="daily" type="button" class="mode-card" aria-pressed="false">
+            <span class="btn-icon">&#128123;</span>
+            <div class="mode-info">
+              <span class="mode-name">DAILY HAUNT</span>
+              <span class="mode-tag">DAILY SEED &bull; STREAK</span>
+            </div>
+          </button>
+          <button id="boss" type="button" class="mode-card" aria-pressed="false">
+            <span class="btn-icon">&#9876;</span>
+            <div class="mode-info">
+              <span class="mode-name">BOSS RAID</span>
+              <span class="mode-tag">PUMPKIN KING &bull; MULTI-HIT</span>
+            </div>
+          </button>
+        </div>
+        <div class="menu-actions">
+          <button id="scores-btn" type="button"><span class="btn-icon">&#127942;</span> HIGH SCORES</button>
+        </div>
+        <p class="best">&#9733; LOCAL RECORD <strong id="best">0</strong></p>
       </div>
-      <p class="best">LOCAL BEST <strong id="best">0</strong></p>
+    </section>
+    <section id="gameover" class="menu hidden">
+      <div class="dojo-board leaderboard-board">
+        <span class="bolt bolt-tl"></span>
+        <span class="bolt bolt-tr"></span>
+        <span class="bolt bolt-bl"></span>
+        <span class="bolt bolt-br"></span>
+        <p id="results-eyebrow" class="eyebrow">&#9733; DOJO RESULTS &#9733;</p>
+        <h1 id="gameover-title">GAME<br><span>OVER</span></h1>
+        <div id="mode-tabs" class="mode-tabs hidden" role="tablist" aria-label="Game mode high scores">
+          <button id="tab-classicRaid" type="button" class="tab-btn active" role="tab" aria-selected="true">CLASSIC</button>
+          <button id="tab-moonRush" type="button" class="tab-btn" role="tab" aria-selected="false">MOON</button>
+          <button id="tab-spiritZen" type="button" class="tab-btn" role="tab" aria-selected="false">ZEN</button>
+          <button id="tab-dailyHaunt" type="button" class="tab-btn" role="tab" aria-selected="false">DAILY</button>
+          <button id="tab-bossRaid" type="button" class="tab-btn" role="tab" aria-selected="false">BOSS</button>
+        </div>
+        <div id="score-plaque" class="score-plaque">
+          <span class="score-label">FINAL SCORE</span>
+          <span id="final-score" class="score-display">0</span>
+          <div id="new-high-badge" class="high-badge hidden">&#9733; NEW HIGH SCORE! &#9733;</div>
+          <div class="run-stats">
+            <span class="stat-item">SMASHED: <strong id="stat-smashed">0</strong></span>
+            <span class="stat-sep">&#8226;</span>
+            <span class="stat-item">BEST COMBO: <strong id="stat-combo">0</strong></span>
+          </div>
+        </div>
+        <div class="leaderboard-container">
+          <div class="leaderboard-header">
+            <span class="trophy-title"><span class="btn-icon">&#127942;</span> TOP NINJAS</span>
+            <span class="record-tag">BEST <strong id="top-record">0</strong></span>
+          </div>
+          <div id="leaderboard-rows" class="leaderboard-rows" role="table" aria-label="High scores list">
+          </div>
+        </div>
+        <div class="gameover-actions">
+          <button id="replay-btn" type="button" class="btn-primary"><span class="btn-icon">&#9876;</span> TAP TO REPLAY</button>
+          <button id="menu-btn" type="button" class="btn-secondary"><span class="btn-icon">&#127968;</span> MAIN MENU</button>
+        </div>
+      </div>
     </section>
     <img id="ghost-sprite" class="preload" src="assets/phantom.png" alt="">
     <img id="pumpkin-sprite-1" class="preload" src="assets/pumpkin1.png" alt="">
     <img id="pumpkin-sprite-2" class="preload" src="assets/pumpkin2.png" alt="">
     <img id="pumpkin-sprite-3" class="preload" src="assets/pumpkin3.png" alt="">
+    <img id="pumpkin-piece-1" class="preload" src="assets/pumpkin_piece1.png" alt="">
+    <img id="pumpkin-piece-2" class="preload" src="assets/pumpkin_piece2.png" alt="">
+    <img id="pumpkin-seed" class="preload" src="assets/pumpkin_seed.png" alt="">
+    <img id="sweet-sprite-1" class="preload" src="assets/sweet1.png" alt="">
+    <img id="sweet-sprite-2" class="preload" src="assets/sweet2.png" alt="">
+    <img id="sweet-sprite-3" class="preload" src="assets/sweet3.png" alt="">
     <audio id="music" src="assets/mysterious_house.mp3" loop preload="auto"></audio>
     <audio id="slice-sound" src="assets/slice.wav" preload="auto"></audio>
+    <audio id="explode-sound" src="assets/explode.wav" preload="auto"></audio>
+    <audio id="ding-sound" src="assets/ding.wav" preload="auto"></audio>
+    <audio id="hit-sound" src="assets/bow_wah.wav" preload="auto"></audio>
   </main>
   <script type="module">
     import { init } from "pumkin-raid-wasm";

@@ -42,7 +42,7 @@ final class ResourceTests: XCTestCase {
   }
 
   func testLicensedDisplayFontsArePackaged() {
-    for name in ["GapstownAHBold", "Creepsville"] {
+    for name in ["GangOfThree", "GapstownAHBold", "Creepsville"] {
       XCTAssertNotNil(
         Bundle.pumkinRaidResources.url(forResource: name, withExtension: "ttf"),
         "Missing required display font: \(name).ttf"

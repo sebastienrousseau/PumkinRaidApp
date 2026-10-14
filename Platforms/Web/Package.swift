@@ -9,7 +9,7 @@ let package = Package(
     .executable(name: "PumkinRaidWeb", targets: ["PumkinRaidWeb"])
   ],
   dependencies: [
-    .package(url: "https://github.com/sebastienrousseau/GameEngineLib.git", from: "0.4.2"),
+    .package(url: "https://github.com/sebastienrousseau/GameEngineLib.git", from: "0.4.4"),
     .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", exact: "0.56.1"),
   ],
   targets: [

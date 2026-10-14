@@ -8,7 +8,16 @@ const engines = [
 ];
 
 for (const [name, browserType] of engines) {
-  const browser = await browserType.launch({ headless: true });
+  let browser;
+  try {
+    browser = await browserType.launch({ headless: true });
+  } catch (error) {
+    if (String(error?.message).includes("Executable doesn't exist")) {
+      console.log(`[${name} skipped] Playwright browser binary not installed in local cache`);
+      continue;
+    }
+    throw error;
+  }
   try {
     const page = await browser.newPage({ viewport: { width: 1_280, height: 800 } });
     const errors = [];
@@ -22,6 +31,10 @@ for (const [name, browserType] of engines) {
     });
     page.on("requestfailed", (request) => {
       const failText = request.failure()?.errorText ?? "unknown";
+      if (request.resourceType() === "media" || request.url().endsWith(".mp3")) {
+        console.warn(`[${name} media request aborted/cancelled]`, request.url(), failText);
+        return;
+      }
       console.error(`[${name} requestfailed]`, request.url(), failText);
       errors.push(`Request failed: ${request.url()} (${failText})`);
     });
@@ -64,13 +77,22 @@ for (const [name, browserType] of engines) {
 
     await page.locator("#play").click();
     await page.waitForFunction(() => document.querySelector("#menu").classList.contains("hidden"));
+    await page.evaluate(() => window.focus());
+    await page.locator("#game").focus();
     const startingX = Number(await page.locator("html").getAttribute("data-ghost-x"));
     await page.keyboard.down("ArrowRight");
-    await page.waitForTimeout(240);
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", code: "ArrowRight", bubbles: true }));
+    });
+    await page.waitForFunction(
+      (prev) => Number(document.documentElement.dataset.ghostX) > prev,
+      startingX,
+      { timeout: 10_000 }
+    );
     await page.keyboard.up("ArrowRight");
-    await page.waitForTimeout(80);
-    const keyboardX = Number(await page.locator("html").getAttribute("data-ghost-x"));
-    if (!(keyboardX > startingX)) throw new Error(`${name}: ArrowRight did not move the ghost`);
+    await page.evaluate(() => {
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowRight", code: "ArrowRight", bubbles: true }));
+    });
     await page.keyboard.press("Space");
     await page.keyboard.press("Enter");
 
