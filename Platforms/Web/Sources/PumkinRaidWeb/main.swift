@@ -7,48 +7,31 @@ private func markStartup(_ phase: String) {
   JSObject.global.document.documentElement.object?.dataset.object?.swiftPhase = .string(phase)
 }
 
-markStartup("executor")
 JavaScriptEventLoop.installGlobalExecutor()
-markStartup("game-construction")
 
 private final class BrowserGame {
-  private let window = JSObject.global
-  private let document = JSObject.global.document
-  private let canvas: JSObject
-  private let context: JSObject
+  private let window = JSObject.global, document = JSObject.global.document
+  private let canvas: JSObject, context: JSObject
   private var simulation: GameSimulation
-  private var currentMode = GameMode.classicRaid
-  private var inputRouter = SemanticInputRouter()
-  private var pointerIsActive = false
+  private var currentMode = GameMode.classicRaid, inputRouter = SemanticInputRouter()
+  private var pointerIsActive = false, running = false
   private var lastPointerPosition: Vector2?
-  private var lastTimestamp = 0.0
-  private var accumulator = 0.0
-  private var running = false
-  private let effects = VisualEffectsManager()
-  private let leaderboard = WebLeaderboard()
+  private var lastTimestamp = 0.0, accumulator = 0.0
+  private let effects = VisualEffectsManager(), leaderboard = WebLeaderboard()
   private let audio: WebAudio
   private var lastPumpkinPositions: [Int: (x: Double, y: Double, radius: Double)] = [:]
-  private var frameClosure: JSClosure?
-  private var eventClosures: [JSClosure] = []
+  private var frameClosure: JSClosure?, eventClosures: [JSClosure] = []
   private var ghostSprite: JSObject?
   private var pumpkinSprites: [JSObject?] = []
   private var sweetSprites: [JSObject?] = []
-  private var hudScore: JSObject?
-  private var hudLives: JSObject?
-  private var hudCharges: JSObject?
-  private var hudMode: JSObject?
+  private var hudScore: JSObject?, hudLives: JSObject?
+  private var hudCharges: JSObject?, hudMode: JSObject?
   private var atmosphereGradient: JSObject?
-  private var lastHUDScore = -1
-  private var lastHUDLives = -1
-  private var lastHUDSlices = -1
-  private var lastHUDBooms = -1
-  private var lastHUDMode: GameMode?
-  private var lastGhostXRound = -1
+  private var lastHUDScore = -1, lastHUDLives = -1, lastHUDSlices = -1, lastHUDBooms = -1
+  private var lastHUDMode: GameMode?, lastGhostXRound = -1
 
   init?() {
-    markStartup("simulation")
     let initialSimulation = GameSimulation(seed: 0)
-    markStartup("dom")
     guard
       let canvas = document.getElementById("game").object,
       let context = canvas.getContext!("2d").object
@@ -57,17 +40,11 @@ private final class BrowserGame {
     self.context = context
     self.simulation = initialSimulation
     self.audio = WebAudio(document: document)
-    markStartup("assets")
     cacheAssets()
-    markStartup("input")
     installInput()
-    markStartup("mode-buttons")
     installModeButtons()
-    markStartup("loop")
     installFrameLoop()
-    markStartup("resize")
     resize()
-    markStartup("render")
     render()
     markStartup("ready")
   }
@@ -94,20 +71,26 @@ private final class BrowserGame {
   }
 
   private func installModeButtons() {
-    let buttons: [(String, GameMode)] = [
-      ("play", .classicRaid),
-      ("moon", .moonRush),
-      ("zen", .spiritZen),
-      ("daily", .dailyHaunt),
-      ("boss", .bossRaid),
+    let modeButtons: [(String, GameMode)] = [
+      ("classic", .classicRaid), ("moon", .moonRush),
+      ("zen", .spiritZen), ("daily", .dailyHaunt), ("boss", .bossRaid),
     ]
-    for (identifier, mode) in buttons {
-      guard let button = document.getElementById(identifier).object else { continue }
+    for (id, mode) in modeButtons {
+      guard let button = document.getElementById(id).object else { continue }
       let closure = JSClosure { [weak self] _ in
-        self?.start(mode: mode)
+        self?.selectMenuMode(mode)
         return .undefined
       }
       button.onclick = JSValue.object(closure)
+      eventClosures.append(closure)
+    }
+    if let playBtn = document.getElementById("play").object {
+      let closure = JSClosure { [weak self] _ in
+        guard let self else { return .undefined }
+        self.start(mode: self.currentMode)
+        return .undefined
+      }
+      playBtn.onclick = JSValue.object(closure)
       eventClosures.append(closure)
     }
     eventClosures += leaderboard.installButtons(
@@ -125,10 +108,25 @@ private final class BrowserGame {
         self.start(mode: self.currentMode)
       },
       onSelectMode: { [weak self] mode in
-        self?.currentMode = mode
+        self?.selectMenuMode(mode)
       }
     )
     leaderboard.updateBestScore(document: document)
+  }
+
+  private func selectMenuMode(_ mode: GameMode) {
+    currentMode = mode
+    for id in ["classic", "moon", "zen", "daily", "boss"] {
+      _ = document.getElementById(id).object?.classList.remove("active")
+    }
+    let map: [GameMode: String] = [
+      .classicRaid: "classic", .moonRush: "moon",
+      .spiritZen: "zen", .dailyHaunt: "daily", .bossRaid: "boss",
+    ]
+    _ = document.getElementById(map[mode] ?? "classic").object?.classList.add("active")
+    if let playText = document.getElementById("play-btn-text").object {
+      playText.innerText = .string("TAP TO PLAY \(mode.displayTitle)")
+    }
   }
 
   private func installInput() {
@@ -221,10 +219,8 @@ private final class BrowserGame {
 
   private func start(mode: GameMode) {
     currentMode = mode
-    let seed =
-      mode == .dailyHaunt
-      ? GameMode.dailySeed()
-      : UInt64(Date.now.timeIntervalSince1970 * 1_000_000)
+    let epoch = UInt64(Date.now.timeIntervalSince1970 * 1e6)
+    let seed = mode == .dailyHaunt ? GameMode.dailySeed() : epoch
     simulation = GameSimulation(seed: seed, mode: mode)
     inputRouter.cancelAll()
     pointerIsActive = false
@@ -363,8 +359,8 @@ private final class BrowserGame {
     canvas.width = .number(w)
     canvas.height = .number(h)
     if let gradient = context.createLinearGradient!(0, 0, 0, h).object {
-      _ = gradient.addColorStop!(0, "rgba(7,16,33,.35)")
-      _ = gradient.addColorStop!(1, "rgba(39,7,10,.72)")
+      _ = gradient.addColorStop!(0, "rgba(7,16,33,.18)")
+      _ = gradient.addColorStop!(1, "rgba(24,6,12,.35)")
       atmosphereGradient = gradient
     }
     render()
@@ -473,12 +469,20 @@ private final class BrowserGame {
       lastHUDScore = session.score
       hudScore?.innerText = .string("SCORE  \(session.score)")
     }
-    if session.lives != lastHUDLives {
+    if session.lives != lastHUDLives || simulation.state.remainingTicks != nil {
       lastHUDLives = session.lives
-      let strikes =
-        session.lives >= 3
-        ? "✕ ✕ ✕" : (session.lives == 2 ? "✕ ✕" : (session.lives == 1 ? "✕" : "0"))
-      hudLives?.innerText = .string("LIVES  \(session.lives) [\(strikes)]")
+      if let ticks = simulation.state.remainingTicks {
+        let tps = Double(simulation.configuration.ticksPerSecond)
+        let sec = max(0, Int(ceil(Double(ticks) / tps)))
+        hudLives?.innerText = .string("TIME  \(sec)s")
+      } else if currentMode == .spiritZen {
+        hudLives?.innerText = .string("ZEN FLOW 🕊")
+      } else {
+        let strikes =
+          session.lives >= 3
+          ? "✕ ✕ ✕" : (session.lives == 2 ? "✕ ✕" : (session.lives == 1 ? "✕" : "0"))
+        hudLives?.innerText = .string("LIVES  \(session.lives) [\(strikes)]")
+      }
     }
     if session.slices != lastHUDSlices || session.booms != lastHUDBooms {
       lastHUDSlices = session.slices

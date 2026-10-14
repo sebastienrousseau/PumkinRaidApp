@@ -25,12 +25,43 @@
         <p class="eyebrow">&#9733; ULTIMATE SWORD ARCADE &#9733;</p>
         <h1>PUMPKIN<br><span>RAID</span></h1>
         <p class="menu-desc">Slice the pumpkins &bull; Dodge the cursed<br><span class="controls-hint">Touch, mouse swipe, WASD, or Space to dash</span></p>
-        <div class="modes" aria-label="Choose game mode">
-          <button id="play" type="button"><span class="btn-icon">&#127875;</span> SLICE TO PLAY</button>
-          <button id="moon" type="button"><span class="btn-icon">&#127769;</span> MOON RUSH</button>
-          <button id="zen" type="button"><span class="btn-icon">&#127807;</span> SPIRIT ZEN</button>
-          <button id="daily" type="button"><span class="btn-icon">&#128123;</span> DAILY HAUNT</button>
-          <button id="boss" type="button"><span class="btn-icon">&#9876;</span> BOSS RAID</button>
+        <button id="play" type="button" class="btn-primary play-btn"><span class="btn-icon">&#127875;</span> <span id="play-btn-text">TAP TO PLAY CLASSIC</span></button>
+        <div class="modes modes-grid" role="group" aria-label="Choose game mode">
+          <button id="classic" type="button" class="mode-card active" aria-pressed="true">
+            <span class="btn-icon">&#127875;</span>
+            <div class="mode-info">
+              <span class="mode-name">CLASSIC RAID</span>
+              <span class="mode-tag">3 LIVES &bull; SURVIVE</span>
+            </div>
+          </button>
+          <button id="moon" type="button" class="mode-card" aria-pressed="false">
+            <span class="btn-icon">&#127769;</span>
+            <div class="mode-info">
+              <span class="mode-name">MOON RUSH</span>
+              <span class="mode-tag">60s &bull; 2x FRENZY</span>
+            </div>
+          </button>
+          <button id="zen" type="button" class="mode-card" aria-pressed="false">
+            <span class="btn-icon">&#127807;</span>
+            <div class="mode-info">
+              <span class="mode-name">SPIRIT ZEN</span>
+              <span class="mode-tag">90s &bull; NO BOMBS</span>
+            </div>
+          </button>
+          <button id="daily" type="button" class="mode-card" aria-pressed="false">
+            <span class="btn-icon">&#128123;</span>
+            <div class="mode-info">
+              <span class="mode-name">DAILY HAUNT</span>
+              <span class="mode-tag">DAILY SEED &bull; STREAK</span>
+            </div>
+          </button>
+          <button id="boss" type="button" class="mode-card" aria-pressed="false">
+            <span class="btn-icon">&#9876;</span>
+            <div class="mode-info">
+              <span class="mode-name">BOSS RAID</span>
+              <span class="mode-tag">PUMPKIN KING &bull; MULTI-HIT</span>
+            </div>
+          </button>
         </div>
         <div class="menu-actions">
           <button id="scores-btn" type="button"><span class="btn-icon">&#127942;</span> HIGH SCORES</button>
@@ -72,7 +103,7 @@
           </div>
         </div>
         <div class="gameover-actions">
-          <button id="replay-btn" type="button" class="btn-primary"><span class="btn-icon">&#9876;</span> SLICE TO REPLAY</button>
+          <button id="replay-btn" type="button" class="btn-primary"><span class="btn-icon">&#9876;</span> TAP TO REPLAY</button>
           <button id="menu-btn" type="button" class="btn-secondary"><span class="btn-icon">&#127968;</span> MAIN MENU</button>
         </div>
       </div>

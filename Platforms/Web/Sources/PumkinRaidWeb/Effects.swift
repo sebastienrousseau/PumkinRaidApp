@@ -63,6 +63,18 @@ struct BladePoint {
   var age: Double
 }
 
+/// Ethereal ghost cloud puff trailing the blade.
+struct SpiritCloudParticle {
+  var x: Double
+  var y: Double
+  var vx: Double
+  var vy: Double
+  var radius: Double
+  var growth: Double
+  var alpha: Double
+  var color: String
+}
+
 /// Authoritative manager of visual effects for the WebAssembly canvas.
 final class VisualEffectsManager {
   var sliceImages: [JSObject?] = []
@@ -73,24 +85,46 @@ final class VisualEffectsManager {
   private(set) var splats: [JuiceSplat] = []
   private(set) var callouts: [VisualCallout] = []
   private(set) var bladePoints: [BladePoint] = []
+  private(set) var spiritClouds: [SpiritCloudParticle] = []
   var shake: Double = 0
 
   func addBladePoint(x: Double, y: Double) {
     bladePoints.append(BladePoint(x: x, y: y, age: 0))
-    if bladePoints.count > 16 { bladePoints.removeFirst() }
+    if bladePoints.count > 20 { bladePoints.removeFirst() }
+    spawnSpiritCloud(atX: x, y: y)
   }
 
   func addBladeSegment(fromX: Double, fromY: Double, toX: Double, toY: Double) {
     for step in 0...3 {
       let fraction = Double(step) / 3.0
-      bladePoints.append(
-        BladePoint(
-          x: fromX + (toX - fromX) * fraction,
-          y: fromY + (toY - fromY) * fraction,
-          age: 0
-        ))
+      let px = fromX + (toX - fromX) * fraction
+      let py = fromY + (toY - fromY) * fraction
+      bladePoints.append(BladePoint(x: px, y: py, age: 0))
+      if step % 2 == 0 {
+        spawnSpiritCloud(atX: px, y: py)
+      }
     }
-    if bladePoints.count > 16 { bladePoints.removeFirst(bladePoints.count - 16) }
+    if bladePoints.count > 20 { bladePoints.removeFirst(bladePoints.count - 20) }
+  }
+
+  private func spawnSpiritCloud(atX x: Double, y: Double) {
+    let colors = ["#8beaff", "#b388ff", "#e0f7fa", "#80deea"]
+    let color = colors[spiritClouds.count % colors.count]
+    let angle = Double(spiritClouds.count % 8) * (.pi / 4.0)
+    let speed = 15.0 + Double(Int(x + y) % 25)
+    spiritClouds.append(
+      SpiritCloudParticle(
+        x: x + cos(angle) * 4.0,
+        y: y + sin(angle) * 4.0,
+        vx: cos(angle) * speed,
+        vy: -25.0 - Double(Int(x) % 20),
+        radius: 8.0,
+        growth: 22.0,
+        alpha: 0.65,
+        color: color
+      )
+    )
+    if spiritClouds.count > 24 { spiritClouds.removeFirst(spiritClouds.count - 24) }
   }
 
   func spawnSlice(atX x: Double, y: Double, size: Double, identity: Int) {
@@ -215,6 +249,16 @@ final class VisualEffectsManager {
       return p.alpha > 0.02 ? p : nil
     }
 
+    // Update ethereal spirit cloud particles
+    spiritClouds = spiritClouds.compactMap { cloud in
+      var c = cloud
+      c.x += c.vx * dt
+      c.y += c.vy * dt
+      c.radius += c.growth * dt
+      c.alpha -= 1.6 * dt
+      return c.alpha > 0.02 ? c : nil
+    }
+
     // Fade juice splats slowly
     splats = splats.compactMap { splat in
       var sp = splat
@@ -307,30 +351,54 @@ final class VisualEffectsManager {
   }
 
   private func renderBladeTrail(context: JSObject) {
+    for cloud in spiritClouds {
+      _ = context.save!()
+      context.fillStyle = .string(cloud.color)
+      context.globalAlpha = .number(cloud.alpha * 0.4)
+      context.shadowColor = .string("#40e0d0")
+      context.shadowBlur = .number(12.0)
+      _ = context.beginPath!()
+      _ = context.arc!(cloud.x, cloud.y, cloud.radius, 0, Double.pi * 2)
+      _ = context.fill!()
+      _ = context.restore!()
+    }
     guard bladePoints.count >= 2 else { return }
+    let count = bladePoints.count
     _ = context.save!()
-    context.strokeStyle = .string("rgba(255, 170, 0, 0.85)")
-    context.shadowColor = .string("#ffaa00")
-    context.shadowBlur = .number(18.0)
     context.lineCap = .string("round")
     context.lineJoin = .string("round")
-    context.lineWidth = .number(10.0)
-    _ = context.beginPath!()
-    _ = context.moveTo!(bladePoints[0].x, bladePoints[0].y)
-    for i in 1..<bladePoints.count {
+    for i in 1..<count {
+      let progress = Double(i) / Double(count - 1)
+      context.strokeStyle = .string("rgba(90, 230, 255, \(max(0.08, 0.45 * progress)))")
+      context.shadowColor = .string("#00e5ff")
+      context.shadowBlur = .number(16.0 * progress)
+      context.lineWidth = .number(max(2.0, 22.0 * progress))
+      _ = context.beginPath!()
+      _ = context.moveTo!(bladePoints[i - 1].x, bladePoints[i - 1].y)
       _ = context.lineTo!(bladePoints[i].x, bladePoints[i].y)
+      _ = context.stroke!()
     }
-    _ = context.stroke!()
-
-    context.strokeStyle = .string("rgba(255, 255, 255, 0.95)")
-    context.shadowBlur = .number(4.0)
-    context.lineWidth = .number(4.0)
-    _ = context.beginPath!()
-    _ = context.moveTo!(bladePoints[0].x, bladePoints[0].y)
-    for i in 1..<bladePoints.count {
+    for i in 1..<count {
+      let progress = Double(i) / Double(count - 1)
+      context.strokeStyle = .string("rgba(175, 245, 255, \(max(0.12, 0.85 * progress)))")
+      context.shadowColor = .string("#ffffff")
+      context.shadowBlur = .number(6.0 * progress)
+      context.lineWidth = .number(max(1.5, 9.0 * progress))
+      _ = context.beginPath!()
+      _ = context.moveTo!(bladePoints[i - 1].x, bladePoints[i - 1].y)
       _ = context.lineTo!(bladePoints[i].x, bladePoints[i].y)
+      _ = context.stroke!()
     }
-    _ = context.stroke!()
+    for i in 1..<count {
+      let progress = Double(i) / Double(count - 1)
+      context.strokeStyle = .string("rgba(255, 255, 255, \(max(0.15, 0.95 * progress)))")
+      context.shadowBlur = .number(2.0)
+      context.lineWidth = .number(max(1.0, 3.2 * progress))
+      _ = context.beginPath!()
+      _ = context.moveTo!(bladePoints[i - 1].x, bladePoints[i - 1].y)
+      _ = context.lineTo!(bladePoints[i].x, bladePoints[i].y)
+      _ = context.stroke!()
+    }
     _ = context.restore!()
   }
 

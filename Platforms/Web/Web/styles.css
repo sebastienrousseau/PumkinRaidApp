@@ -79,7 +79,7 @@ canvas {
 .menu {
   position: absolute; z-index: 3; inset: 0; display: grid; place-content: center;
   justify-items: center; padding: 16px; text-align: center;
-  background: radial-gradient(circle at 50% 40%, rgba(20, 10, 24, 0.94), rgba(6, 4, 11, 0.98) 75%);
+  background: radial-gradient(circle at 50% 45%, rgba(14, 6, 20, 0.58) 0%, rgba(8, 3, 12, 0.82) 70%, rgba(4, 1, 6, 0.92) 100%);
   transition: opacity .3s ease, transform .3s ease;
 }
 
@@ -87,9 +87,9 @@ canvas {
 
 .dojo-board {
   position: relative; display: flex; flex-direction: column; align-items: center;
-  gap: 14px; width: min(640px, 92vw); padding: 34px 32px 28px;
+  gap: 10px; width: min(580px, 92vw); padding: 24px 28px 22px;
   background: linear-gradient(176deg, #381a0b 0%, #240e04 50%, #150702 100%);
-  border: 4px solid #7a3e1a; outline: 3px solid #1f0b03; border-radius: 28px;
+  border: 4px solid #7a3e1a; outline: 3px solid #1f0b03; border-radius: 26px;
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.92), inset 0 2px 4px rgba(255, 220, 150, 0.3), inset 0 -4px 10px rgba(0, 0, 0, 0.8);
 }
 
@@ -118,16 +118,74 @@ h1 {
 }
 
 .menu-desc {
-  margin: 0 0 4px; font-family: var(--font-body); font-size: 1.02rem; font-weight: 600;
+  margin: 0 0 2px; font-family: var(--font-body); font-size: 1.0rem; font-weight: 600;
   line-height: 1.45; color: #f3e3d2; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
 }
 
 .controls-hint {
-  display: inline-block; font-size: 0.88rem; font-weight: 500; color: #cbb49e; margin-top: 3px;
+  display: inline-block; font-size: 0.86rem; font-weight: 500; color: #cbb49e; margin-top: 2px;
 }
 
-.modes {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%;
+.play-btn {
+  width: 100%; min-height: 56px; font-size: 1.35rem !important; font-weight: 900 !important;
+  letter-spacing: .06em !important;
+  background: linear-gradient(180deg, #ffaa36 0%, #f16400 48%, #bd3100 100%) !important;
+  border: 2.5px solid #ffe082 !important; color: #ffffff !important;
+  text-shadow: 0 2px 0 #5c1800, 0 3px 0 #3d0e00 !important;
+  border-radius: 16px;
+  box-shadow: 0 5px 0 #6e1c00, 0 8px 18px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 210, 0.6) !important;
+}
+
+.play-btn:hover {
+  background: linear-gradient(180deg, #ffc438 0%, #ff8214 48%, #d83c00 100%) !important;
+  box-shadow: 0 7px 0 #6e1c00, 0 12px 24px rgba(255, 120, 0, 0.6), inset 0 2px 4px #fff !important;
+  transform: translateY(-2px);
+}
+
+.modes-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; width: 100%;
+}
+
+.mode-card {
+  display: flex; align-items: center; gap: 8px; min-height: 46px;
+  padding: 5px 10px; border-radius: 12px; border: 1.5px solid #6b3514;
+  background: rgba(22, 9, 4, 0.92); color: #eed6b8;
+  cursor: pointer; transition: all .12s ease; text-align: left;
+  box-shadow: 0 3px 0 #100401;
+}
+
+.mode-card:hover {
+  border-color: #d88a44; color: #fff7eb; background: rgba(45, 18, 8, 0.95);
+  transform: translateY(-1px);
+}
+
+.mode-card.active {
+  border-color: #ffd54f; background: linear-gradient(180deg, #441c09 0%, #290d03 100%);
+  color: #fffdf0; box-shadow: 0 3px 0 #180601, 0 0 0 1px #ffd54f, inset 0 1px 2px rgba(255, 220, 150, 0.3);
+}
+
+#classic.active { border-color: #ffb300; }
+#moon.active { border-color: #ffa726; }
+#zen.active { border-color: #66bb6a; }
+#daily.active { border-color: #ab47bc; }
+#boss.active { border-color: #ef5350; }
+
+.mode-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.mode-info {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; flex: 1;
+}
+
+.mode-name {
+  font-family: var(--font-arcade); font-size: 0.88rem; font-weight: 800;
+  letter-spacing: .04em; color: #fff3db; text-transform: uppercase;
+}
+
+.mode-tag {
+  font-family: var(--font-arcade); font-size: 0.68rem; font-weight: 700;
+  letter-spacing: .04em; color: #ffb74d; opacity: 0.92;
 }
 
 button {
@@ -159,25 +217,6 @@ button:focus-visible { outline: 3px solid #ffd54f; outline-offset: 3px; }
   font-size: 1.1em; line-height: 1; text-shadow: none !important;
 }
 
-/* Master Primary Slicing Button */
-.modes button:first-child {
-  grid-column: 1 / -1; min-height: 68px; font-size: 1.55rem; font-weight: 900;
-  letter-spacing: .06em; background: linear-gradient(180deg, #ffb300 0%, #ff6f00 48%, #c43000 100%);
-  border: 3px solid #ffe082; color: #240900;
-  text-shadow: 0 1px 0 rgba(255, 235, 190, 0.6);
-  box-shadow: 0 5px 0 #6e1c00, 0 8px 20px rgba(255, 110, 0, 0.5), inset 0 2px 4px rgba(255, 255, 210, 0.7);
-}
-
-.modes button:first-child:hover {
-  background: linear-gradient(180deg, #ffc438 0%, #ff8214 48%, #d83c00 100%);
-  box-shadow: 0 7px 0 #6e1c00, 0 10px 24px rgba(255, 130, 0, 0.6), inset 0 3px 6px #fff;
-  transform: translateY(-2px) scale(1.015);
-}
-
-#moon { border-color: #ffa726; }
-#zen { border-color: #66bb6a; }
-#daily { border-color: #ab47bc; }
-#boss { border-color: #ef5350; }
 
 .menu-actions {
   display: flex; justify-content: center; width: 100%; margin-top: 4px;

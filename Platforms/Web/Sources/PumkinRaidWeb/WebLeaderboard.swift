@@ -174,7 +174,7 @@ final class WebLeaderboard {
     _ = document.getElementById("score-plaque").object?.classList.remove("hidden")
     _ = document.getElementById("mode-tabs").object?.classList.add("hidden")
     if let replayBtn = document.getElementById("replay-btn").object {
-      replayBtn.innerHTML = .string("<span class=\"btn-icon\">⚔</span> SLICE TO REPLAY")
+      replayBtn.innerHTML = .string("<span class=\"btn-icon\">⚔</span> TAP TO REPLAY")
     }
     if let menuBtn = document.getElementById("menu-btn").object {
       menuBtn.innerHTML = .string("<span class=\"btn-icon\">🏠</span> MAIN MENU")
@@ -200,7 +200,7 @@ final class WebLeaderboard {
     _ = document.getElementById("mode-tabs").object?.classList.remove("hidden")
     updateTabSelection(document: document, activeMode: mode)
     if let replayBtn = document.getElementById("replay-btn").object {
-      replayBtn.innerHTML = .string("<span class=\"btn-icon\">⚔</span> SLICE TO PLAY")
+      replayBtn.innerHTML = .string("<span class=\"btn-icon\">⚔</span> TAP TO PLAY")
     }
     if let menuBtn = document.getElementById("menu-btn").object {
       menuBtn.innerHTML = .string("<span class=\"btn-icon\">🏠</span> MAIN MENU")
